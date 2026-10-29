@@ -64,7 +64,7 @@ In the web UI use `j` / `k` to move between steps, switch between "vs previous" 
 Explanations are written by an AI and can be wrong. That is why every explanation includes places to check yourself; treat it as a guide to what to read, not as the answer.
 
 ```sh
-git config flickbook.provider claude     # or: codex
+git config flickbook.provider claude
 git config flickbook.lang ko             # default: en
 flickbook explain                        # latest step (or --step N / --all)
 ```
@@ -73,7 +73,7 @@ Each explanation has five labeled parts: **Requested** (what you asked for, from
 
 `git config flickbook.lang ko` switches both the explanations and the web UI to Korean (default `en`; `ko`, `ko-KR` and the like mean Korean, any other value falls back to English). CLI messages and error texts from the server stay in English.
 
-Explanations use the `claude` or `codex` CLI you already have, run in an empty temporary directory and kept away from your own agent setup: `claude` with no tools, `--safe-mode` (no CLAUDE.md, skills, plugins, hooks or MCP servers), `--strict-mcp-config` and `--disable-slash-commands`; `codex` in a read-only sandbox with `--ignore-user-config`, `--ignore-rules` and no MCP servers. They are generated only when you click the button or run `flickbook explain`, cached in `.git/flickbook/explain/`, and shown immediately once they exist.
+In this version explanations use the Claude Code CLI (`claude`) you already have; support for other agents such as Codex is planned for a later version, and `flickbook.provider codex` is refused with a message. It runs in an empty temporary directory and is kept away from your own agent setup: no tools, `--safe-mode` (no CLAUDE.md, skills, plugins, hooks or MCP servers), `--strict-mcp-config` and `--disable-slash-commands`. It gets a minimal environment (`PATH`, `HOME`, `USER`/`LOGNAME`, `LANG`/`LC_*`, `TERM`, `TMPDIR`, proxy and CA-certificate variables, `XDG_*` directories, and `ANTHROPIC_*` / `CLAUDE_*`), so other secrets in your shell, such as cloud keys or tokens, are not passed on. Explanations are generated only when you click the button or run `flickbook explain`, cached in `.git/flickbook/explain/`, and shown immediately once they exist.
 
 ### Claude Code hook
 
@@ -102,7 +102,7 @@ Nothing leaves your machine until you set a provider.
 - The web server binds to `127.0.0.1` only, loads no remote assets, and rejects requests from other origins.
 - If you set a provider, the step's diff (up to 60 KB) and the prompt context are sent to the provider behind that CLI. Not before.
 - Snapshots include untracked files that are not ignored, so a large file or a secret such as an unignored `.env` is stored too and, if a provider is set, its diff is sent. List such files in `.gitignore` or `.git/info/exclude`.
-- `codex exec` has no flag to skip global instruction files such as `AGENTS.md` in your Codex home, so those may still reach the model.
+- The `claude` process only receives the minimal environment listed above, not your full shell environment. If you sign in to Claude through a cloud provider (for example AWS Bedrock) with credentials in other variables, those are not passed, so use a regular Claude login or `ANTHROPIC_*` settings.
 - Linked worktrees of one repository share the list of sessions (the refs); the active session is per worktree.
 - Concurrent Claude Code sessions in one repository share one pending prompt context, so a step can carry another session's prompt.
 - Caveat: `git push --mirror` and `git clone --mirror` copy all refs, including `refs/flickbook/*`, which contain your prompts. Run `flickbook rm <id>` first, or push branches explicitly. A normal `git push` / `git clone` does not transfer them.

@@ -64,7 +64,7 @@ flickbook rm <id>                       # 세션의 스냅샷 삭제
 해설은 AI 가 쓰므로 틀릴 수 있습니다. 그래서 해설마다 「직접 확인할 곳」이 붙습니다. 해설은 정답이 아니라 어디를 읽을지 알려 주는 안내로 봐 주세요.
 
 ```sh
-git config flickbook.provider claude     # 또는 codex
+git config flickbook.provider claude
 git config flickbook.lang ko             # 기본값 en
 flickbook explain                        # 최근 단계 (--step N · --all)
 ```
@@ -73,7 +73,7 @@ flickbook explain                        # 최근 단계 (--step N · --all)
 
 `git config flickbook.lang ko` 로 해설과 웹 화면을 모두 한국어로 바꿀 수 있습니다(기본값 `en`; `ko`, `ko-KR` 처럼 `ko` 로 시작하는 값은 한국어, 그 밖의 값은 영어). CLI 메시지와 서버가 돌려주는 오류 문구는 영어로 남습니다.
 
-해설은 이미 설치된 `claude` 또는 `codex` CLI 를 쓰며, 빈 임시 디렉토리에서, 사용자 자신의 에이전트 설정과 떨어뜨려 실행합니다: `claude` 는 도구 없이 `--safe-mode`(CLAUDE.md·스킬·플러그인·훅·MCP 서버 없음)·`--strict-mcp-config`·`--disable-slash-commands` 로, `codex` 는 읽기 전용 샌드박스에서 `--ignore-user-config`·`--ignore-rules` 와 MCP 서버 없이 실행합니다. 버튼을 누르거나 `flickbook explain` 을 실행할 때만 생성되고, `.git/flickbook/explain/` 에 캐시되며, 생성된 뒤에는 단계를 고르는 즉시 보입니다.
+이번 버전의 해설은 이미 설치된 Claude Code CLI(`claude`)만 씁니다. Codex 같은 다른 에이전트 지원은 이후 버전에서 추가할 예정이며, `flickbook.provider codex` 는 안내 메시지와 함께 거부됩니다. 빈 임시 디렉토리에서, 사용자 자신의 에이전트 설정과 떨어뜨려 도구 없이 `--safe-mode`(CLAUDE.md·스킬·플러그인·훅·MCP 서버 없음)·`--strict-mcp-config`·`--disable-slash-commands` 로 실행합니다. 환경 변수도 최소한만 넘깁니다(`PATH`, `HOME`, `USER`/`LOGNAME`, `LANG`/`LC_*`, `TERM`, `TMPDIR`, 프록시·CA 인증서 변수, `XDG_*` 디렉토리, `ANTHROPIC_*` / `CLAUDE_*`). 그래서 셸에 있는 클라우드 키나 토큰 같은 다른 비밀값은 전달되지 않습니다. 버튼을 누르거나 `flickbook explain` 을 실행할 때만 생성되고, `.git/flickbook/explain/` 에 캐시되며, 생성된 뒤에는 단계를 고르는 즉시 보입니다.
 
 ### Claude Code 훅
 
@@ -102,7 +102,7 @@ provider 를 설정하기 전에는 아무것도 컴퓨터 밖으로 나가지 �
 - 웹 서버는 `127.0.0.1` 에만 바인드하고, 외부 자원을 불러오지 않으며, 다른 출처의 요청을 거부합니다.
 - provider 를 설정하면 해당 단계의 diff(최대 60 KB)와 프롬프트 맥락이 그 CLI 뒤의 공급자에게 전송됩니다. 설정 전에는 전송되지 않습니다.
 - 스냅샷에는 무시되지 않은 추적 안 되는 파일도 들어가므로, 큰 파일이나 무시 목록에 없는 `.env` 같은 비밀도 저장되고 provider 를 설정했다면 그 diff 가 전송됩니다. 그런 파일은 `.gitignore` 나 `.git/info/exclude` 에 넣으세요.
-- `codex exec` 에는 Codex 홈의 `AGENTS.md` 같은 전역 지침 파일을 건너뛰는 옵션이 없어, 그 내용이 모델에 들어갈 수 있습니다.
+- `claude` 프로세스는 셸의 전체 환경이 아니라 위에 적은 최소 환경 변수만 받습니다. 클라우드 제공자(예: AWS Bedrock)로 Claude 에 로그인하면서 자격 증명을 다른 변수에 둔 경우 그 값은 전달되지 않으므로, 일반 Claude 로그인이나 `ANTHROPIC_*` 설정을 쓰세요.
 - 한 저장소의 연결된 worktree 들은 세션 목록(ref)을 공유합니다. 활성 세션은 worktree 마다 따로입니다.
 - 한 저장소에서 Claude Code 세션을 동시에 여럿 돌리면 대기 중인 프롬프트 맥락 하나를 공유하므로, 한 단계에 다른 세션의 프롬프트가 붙을 수 있습니다.
 - 주의: `git push --mirror`, `git clone --mirror` 는 `refs/flickbook/*` 를 포함한 모든 ref 를 복사하며 그 안에 프롬프트가 들어 있습니다. 먼저 `flickbook rm <id>` 를 하거나 브랜치를 명시해 push 하세요. 일반 `git push` / `git clone` 은 이 ref 를 옮기지 않습니다.
