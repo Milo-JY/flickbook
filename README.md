@@ -58,7 +58,7 @@ git config flickbook.lang ko             # default: en
 flickbook explain                        # latest step (or --step N / --all)
 ```
 
-Each explanation has four labeled parts: **Requested** (what you asked for, from the recorded prompt and/or the step note; if no request was recorded it says so and makes no comparison), **Done** (what the diff actually changes), **Gap** (what was asked but is missing, and what changed without being asked), and **Check yourself** (1-3 places to read closely, especially what the diff alone cannot confirm). To record the request, use the Claude Code hook or `flickbook step -m "..."`.
+Each explanation has five labeled parts: **Requested** (what you asked for, from the recorded prompt and/or the step note; if no request was recorded it says so and makes no comparison), **Done** (what the diff actually changes), **Gap** (what was asked but is missing, and what changed without being asked), and **Check yourself** (1-3 places to read closely, especially what the diff alone cannot confirm), and **Concepts** (1-3 standard design/engineering concepts the step touches or should have applied, such as input validation or boundary values, each with one plain sentence, so you know what to look up). In the web UI each part is a collapsible card; Gap and Check yourself start open. To record the request, use the Claude Code hook or `flickbook step -m "..."`.
 
 `git config flickbook.lang ko` switches both the explanations and the web UI to Korean (default `en`; unknown values fall back to English). CLI messages and error texts from the server stay in English.
 
