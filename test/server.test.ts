@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { html } from 'diff2html';
+import { NAME } from '../src/name.js';
 import { openRepo } from '../src/repo.js';
 import { startServer, type Running } from '../src/server.js';
 import { endSession, startSession, stepSession } from '../src/session.js';
@@ -38,6 +39,15 @@ beforeAll(async () => {
 afterAll(async () => run.close());
 
 describe('local server (unit 5)', () => {
+  it('exposes the UI language via /api/config (default en, ko when configured)', async () => {
+    const cfg = async () => JSON.parse((await call('GET', '/api/config')).body) as { lang: string };
+    expect((await cfg()).lang).toBe('en');
+    git(dir, 'config', `${NAME}.lang`, 'ko');
+    expect((await cfg()).lang).toBe('ko');
+    git(dir, 'config', '--unset', `${NAME}.lang`);
+    expect((await cfg()).lang).toBe('en');
+  });
+
   it('serves sessions JSON on 127.0.0.1', async () => {
     const r = await call('GET', '/api/sessions');
     expect(r.status).toBe(200);
