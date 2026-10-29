@@ -2,6 +2,7 @@ import { html as diffToHtml } from 'diff2html';
 import 'diff2html/bundles/css/diff2html.min.css';
 import './style.css';
 import { translate, pickLang, type MessageKey } from './i18n';
+import { gapIsCalm, leadingPath, parseExplanation, splitConcept, type Part, type PartKey } from './explain-parse';
 
 interface SessionSummary { id: string; steps: number; start: string; last: string; active: boolean; note: string }
 interface StepInfo {
@@ -135,22 +136,89 @@ function renderCenter(): HTMLElement {
   return c;
 }
 
-// The four parts (en or ko labels). Model text is shown with textContent only; text that does not
-// follow the format (fewer than two labels found) is shown as-is.
-const PART_LABEL = /^(?:- )?(Requested|Done|Gap|Check yourself|요청한 것|실제로 한 것|차이|직접 확인할 곳):[ \t]*(.*)$/;
-function renderExplanationText(text: string): HTMLElement[] {
-  const parts: { label: string; lines: string[] }[] = [];
-  const pre: string[] = [];
-  for (const line of text.split('\n')) {
-    const m = PART_LABEL.exec(line);
-    if (m) parts.push({ label: m[1]!, lines: m[2] ? [m[2]] : [] });
-    else (parts.length ? parts[parts.length - 1]!.lines : pre).push(line);
+// The labeled parts (en or ko). Model text is shown with textContent only, never as HTML; text that does not
+// follow the format is shown as-is.
+const PART_ICON: Record<PartKey | 'calm', string> = {
+  requested: 'M4 5h16v10H9l-5 4z', // speech bubble
+  done: 'M5 12.5l4.5 4.5L19 7.5', // check mark
+  gap: 'M12 4l9 16H3zM12 10v4M12 17v.5', // warning triangle
+  calm: 'M4 12h16', // level line: nothing missing
+  check: 'M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z', // eye
+  concepts: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z', // light bulb
+};
+const DEFAULT_OPEN: Record<PartKey, boolean> = { requested: false, done: false, gap: true, check: true, concepts: false };
+
+function icon(d: string): SVGSVGElement {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.classList.add('icon');
+  const path = document.createElementNS(ns, 'path');
+  path.setAttribute('d', d);
+  svg.append(path);
+  return svg;
+}
+
+const openKey = (k: PartKey) => `${state.config.name}.explain.open.${k}`;
+function partOpen(k: PartKey): boolean {
+  try {
+    const v = localStorage.getItem(openKey(k));
+    if (v === '1' || v === '0') return v === '1';
+  } catch { /* storage blocked: use the default */ }
+  return DEFAULT_OPEN[k];
+}
+function rememberOpen(k: PartKey, open: boolean): void {
+  try { localStorage.setItem(openKey(k), open ? '1' : '0'); } catch { /* storage blocked: not remembered */ }
+}
+
+function jumpToFile(path: string): void {
+  const i = state.files.findIndex((f) => f.path === path);
+  if (i < 0) return;
+  state.file = i;
+  render();
+  document.getElementById('diff')?.scrollTo({ top: 0 });
+}
+
+function lineContent(p: Part, text: string, paths: string[]): (Node | string)[] {
+  if (p.key === 'concepts') {
+    const { name, meaning } = splitConcept(text);
+    return meaning ? [el('span', { cls: 'chip', text: name }), el('div', { cls: 'meaning', text: meaning })] : [el('span', { cls: 'chip', text: name })];
   }
-  if (parts.length < 2) return [el('pre', { text })];
+  const path = p.key === 'check' ? leadingPath(text, paths) : null;
+  if (!path) return [text];
+  const a = el('button', { cls: 'filelink', text: path });
+  a.type = 'button';
+  a.title = t('part.jump', { path });
+  a.addEventListener('click', () => jumpToFile(path));
+  return [a, text.slice(path.length)];
+}
+
+function renderExplanationText(text: string): HTMLElement[] {
+  const parsed = parseExplanation(text);
+  if (!parsed) return [el('pre', { text })];
+  const paths = state.files.map((f) => f.path);
   const out: HTMLElement[] = [];
-  if (pre.join('').trim()) out.push(el('pre', { text: pre.join('\n').trim() }));
-  for (const p of parts) {
-    out.push(el('h3', { cls: 'part', text: p.label }), el('pre', { text: p.lines.join('\n').trim() }));
+  if (parsed.pre) out.push(el('pre', { text: parsed.pre }));
+  for (const p of parsed.parts) {
+    const calm = p.key === 'gap' && gapIsCalm(p);
+    const card = el('details', { cls: `part part-${p.key}${calm ? ' calm' : ''}` });
+    card.open = partOpen(p.key);
+    card.addEventListener('toggle', () => rememberOpen(p.key, card.open));
+    card.append(el('summary', {}, icon(PART_ICON[calm ? 'calm' : p.key]), el('span', { text: t(`part.${p.key}`) })));
+    const body = el('div', { cls: 'body' });
+    let list: HTMLUListElement | null = null;
+    for (const line of p.lines) {
+      if (line.bullet) {
+        if (!list) { list = el('ul', { cls: p.key === 'concepts' ? 'concepts' : '' }); body.append(list); }
+        list.append(el('li', {}, ...lineContent(p, line.text, paths)));
+      } else {
+        list = null;
+        body.append(el('p', {}, ...lineContent(p, line.text, paths)));
+      }
+    }
+    card.append(body);
+    out.push(card);
   }
   return out;
 }
@@ -202,6 +270,7 @@ function seg(opts: [string, string][], current: string, on: (v: string) => void)
   return s;
 }
 
+let renderedSel = -1;
 function render(): void {
   const header = el('header', {}, el('h1', { text: state.config.name }), el('span', { cls: 'sess', text: state.sessionId }), el('span', { cls: 'spacer' }),
     seg([['prev', t('diff.prev')], ['baseline', t('diff.baseline')]], state.base, (v) => { state.base = v as 'prev' | 'baseline'; void loadStep().catch(showFatal); }),
@@ -209,8 +278,12 @@ function render(): void {
   );
   const main = el('main', {}, renderSteps(), renderCenter(), renderExplain());
   const prevScroll = document.querySelector('#steps')?.scrollTop ?? 0;
+  // keep the explanation's scroll position while staying on the same step (e.g. after a file link click)
+  const prevExplain = renderedSel === state.sel ? document.querySelector('#explain')?.scrollTop ?? 0 : 0;
   app.replaceChildren(header, main);
+  renderedSel = state.sel;
   document.querySelector('#steps')!.scrollTop = prevScroll;
+  document.querySelector('#explain')!.scrollTop = prevExplain;
   document.querySelector('#steps .sel')?.scrollIntoView({ block: 'nearest' });
 }
 
