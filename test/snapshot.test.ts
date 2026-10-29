@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { openRepo } from '../src/repo.js';
@@ -51,6 +51,21 @@ describe('snapshot (unit 2)', () => {
     const repo = await openRepo(fresh);
     const tree = await snapshotTree(repo);
     expect(git(fresh, 'ls-tree', '-r', '--name-only', tree).trim()).toBe('x.txt');
+  });
+
+  it('a same-size edit with an unchanged mtime is still seen (racy index copied with its mtime)', async () => {
+    const dir = makeRepo();
+    git(dir, 'config', 'core.trustctime', 'false');
+    const past = new Date('2026-01-01T00:00:00Z');
+    writeFileSync(join(dir, 'a.txt'), 'one\n');
+    utimesSync(join(dir, 'a.txt'), past, past);
+    git(dir, 'add', 'a.txt');
+    const repo = await openRepo(dir);
+    writeFileSync(join(dir, 'a.txt'), 'two\n'); // same size
+    utimesSync(join(dir, 'a.txt'), past, past); // same mtime as the index entry
+    utimesSync(join(repo.gitDir, 'index'), past, past); // index is "racy": entry mtime == index mtime
+    const tree = await snapshotTree(repo);
+    expect(git(dir, 'cat-file', '-p', `${tree}:a.txt`)).toBe('two\n');
   });
 
   it('same tree twice yields one ref', async () => {

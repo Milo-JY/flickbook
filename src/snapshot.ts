@@ -1,4 +1,4 @@
-import { copyFile, readdir, rm, stat, mkdir, access } from 'node:fs/promises';
+import { copyFile, readdir, rm, stat, mkdir, access, utimes } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { git } from './git.js';
@@ -53,7 +53,13 @@ export async function snapshotTree(repo: Repo): Promise<string> {
   const env = { GIT_INDEX_FILE: tmp };
   try {
     const userIndex = join(repo.gitDir, 'index');
-    if (await exists(userIndex)) await copyFile(userIndex, tmp);
+    if (await exists(userIndex)) {
+      await copyFile(userIndex, tmp);
+      // keep the index mtime: git's racy-entry check compares it with file mtimes, and a fresh mtime
+      // would make a same-size edit made in the same second look clean (and be left out)
+      const st = await stat(userIndex);
+      await utimes(tmp, st.atime, st.mtime);
+    }
     else await git(['read-tree', '--empty'], { cwd: repo.top, env });
     await git(['add', '-A'], { cwd: repo.top, env });
     const r = await git(['write-tree'], { cwd: repo.top, env });
