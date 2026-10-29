@@ -122,17 +122,17 @@ FIXTURE="$(git rev-parse --absolute-git-dir)/demo-explanations.json"
 if [ "$LANG_CODE" = ko ]; then
 cat > "$FIXTURE" <<'JSON'
 {
-  "할인 매개변수 추가": "- total() 이 선택적 인자 discountPercent(기본값 0)를 받게 되어, 기존 호출 코드는 그대로 동작합니다.\n- 반복문은 건드리지 않고, 마지막에 합계에 (1 - discountPercent / 100) 을 곱해 할인을 적용합니다.\n- 아직 범위 검사가 없어서 할인율 150 을 넣으면 합계가 음수가 됩니다.",
-  "할인율 범위 검증": "- validate.js 를 새로 만들고 assertPercent() 를 추가했습니다. 값이 0 이상 100 이하의 숫자가 아니면 RangeError 를 던집니다.\n- total() 이 맨 처음에 이 함수를 호출해, 앞 단계에서 남았던 빈틈(범위 밖 할인율)을 막습니다.\n- 검사를 별도 모듈로 분리했으므로 다른 가격 계산 코드에서도 재사용할 수 있습니다.",
-  "할인 및 검증 테스트": "- cart.test.js 에 50% 할인 테스트를 추가했습니다(합계 20 → 기대값 10).\n- 150% 할인은 RangeError 가 발생하는지도 확인합니다.\n- 이 단계에서는 테스트만 바뀌었고, 동작은 이전 단계와 같습니다."
+  "할인 매개변수 추가": "요청한 것: total() 에 선택적 퍼센트 할인을 추가해 달라는 요청입니다.\n실제로 한 것:\n- total() 이 선택적 인자 discountPercent(기본값 0)를 받아, 기존 호출 코드는 그대로 동작합니다.\n- 합계에 (1 - discountPercent / 100) 을 곱하는 식으로 할인을 적용합니다.\n차이: 요청한 기능은 모두 들어갔고, 요청하지 않은 변경은 없습니다. 다만 할인율의 범위 검사는 없습니다.\n직접 확인할 곳:\n- cart.js 의 total(): 할인율 150 이나 -10 을 넣으면 합계가 음수이거나 원래보다 커집니다. diff 만으로는 호출하는 쪽이 항상 올바른 값을 넘기는지 알 수 없습니다.",
+  "할인율 범위 검증": "요청한 것: 할인율이 0~100 범위를 벗어나면 거부하고, 검사는 별도 함수로 분리해 달라는 요청입니다.\n실제로 한 것:\n- validate.js 를 새로 만들고 assertPercent() 를 추가했습니다. 0 이상 100 이하의 숫자가 아니면 RangeError 를 던집니다.\n- total() 이 맨 처음에 이 함수를 호출합니다.\n차이: 요청한 내용은 모두 반영됐고, 요청하지 않은 변경은 없습니다.\n직접 확인할 곳:\n- validate.js 의 assertPercent(): NaN 과 경계값(0, 100)을 어떻게 다루는지 직접 확인하세요.\n- cart.js 의 total(): 검사가 계산보다 먼저 실행되는지 보세요.",
+  "할인 및 검증 테스트": "요청한 것: 할인과 검증에 대한 테스트를 추가해 달라는 요청입니다.\n실제로 한 것:\n- cart.test.js 에 50% 할인 테스트를 추가했습니다(합계 20 → 기대값 10).\n- 150% 할인이 RangeError 를 던지는지도 확인합니다.\n차이: 요청한 테스트는 들어갔지만, 경계값(0%, 100%)과 음수 할인율은 테스트하지 않습니다. 요청하지 않은 변경은 없습니다.\n직접 확인할 곳:\n- cart.test.js 의 console.assert 호출: 실패해도 프로세스가 오류로 끝나지 않을 수 있으니, 테스트가 실제로 실패를 알리는지 확인하세요."
 }
 JSON
 else
 cat > "$FIXTURE" <<'JSON'
 {
-  "add discount parameter": "- total() now takes an optional discountPercent (default 0), so existing callers keep working.\n- The subtotal is scaled by (1 - discountPercent / 100) at the end instead of changing the loop.\n- Nothing checks the range yet: a discount of 150 would produce a negative total.",
-  "validate discount range": "- Adds validate.js with assertPercent(), which throws a RangeError unless the value is a number from 0 to 100.\n- total() calls it first, closing the gap left by the previous step.\n- The check lives in its own module so other pricing code can reuse it.",
-  "test discount and validation": "- cart.test.js now covers a 50% discount (expects 10 for a 20 subtotal).\n- It also asserts that a 150% discount throws a RangeError.\n- Only tests changed in this step; behaviour is the same as the previous step."
+  "add discount parameter": "Requested: an optional percentage discount for total().\nDone:\n- total() now takes an optional discountPercent (default 0), so existing callers keep working.\n- The result is multiplied by (1 - discountPercent / 100) to apply the discount.\nGap: the requested feature is all there and nothing unrequested changed, but there is no range validation on the percentage.\nCheck yourself:\n- total() in cart.js: a discount of 150 or -10 gives a negative or larger-than-original total. The diff cannot show whether callers always pass sane values.",
+  "validate discount range": "Requested: reject discounts outside 0-100 and move the check into its own helper.\nDone:\n- Adds validate.js with assertPercent(), which throws a RangeError unless the value is a number from 0 to 100.\n- total() calls it first.\nGap: everything requested is covered and nothing unrequested changed.\nCheck yourself:\n- assertPercent() in validate.js: check how NaN and the boundary values 0 and 100 are handled.\n- total() in cart.js: confirm the check runs before any calculation.",
+  "test discount and validation": "Requested: tests for the discount and the validation.\nDone:\n- cart.test.js now covers a 50% discount (expects 10 for a 20 subtotal).\n- It also asserts that a 150% discount throws a RangeError.\nGap: the requested tests are there, but the boundaries (0% and 100%) and negative discounts are not tested. Nothing unrequested changed.\nCheck yourself:\n- the console.assert calls in cart.test.js: a failed assert may not make the process exit with an error, so confirm these tests can actually fail."
 }
 JSON
 fi
