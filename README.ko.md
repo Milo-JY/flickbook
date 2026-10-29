@@ -102,7 +102,7 @@ provider 를 설정하기 전에는 아무것도 컴퓨터 밖으로 나가지 �
 - 웹 서버는 `127.0.0.1` 에만 바인드하고, 외부 자원을 불러오지 않으며, 다른 출처의 요청을 거부합니다.
 - provider 를 설정하면 해당 단계의 diff(최대 60 KB)와 프롬프트 맥락이 그 CLI 뒤의 공급자에게 전송됩니다. 설정 전에는 전송되지 않습니다.
 - 스냅샷에는 무시되지 않은 추적 안 되는 파일도 들어가므로, 큰 파일이나 무시 목록에 없는 `.env` 같은 비밀도 저장되고 provider 를 설정했다면 그 diff 가 전송됩니다. 그런 파일은 `.gitignore` 나 `.git/info/exclude` 에 넣으세요.
-- `claude` 프로세스는 셸의 전체 환경이 아니라 위에 적은 최소 환경 변수만 받습니다. 클라우드 제공자(예: AWS Bedrock)로 Claude 에 로그인하면서 자격 증명을 다른 변수에 둔 경우 그 값은 전달되지 않으므로, 일반 Claude 로그인이나 `ANTHROPIC_*` 설정을 쓰세요.
+- `claude` 프로세스는 셸의 전체 환경이 아니라 위에 적은 최소 환경 변수만 받습니다. 클라우드 자격 증명은 Claude Code 가 그 클라우드를 쓰도록 설정된 경우에만 전달합니다: `CLAUDE_CODE_USE_BEDROCK`·`CLAUDE_CODE_USE_MANTLE`·`CLAUDE_CODE_USE_ANTHROPIC_AWS` 이면 `AWS_*`, `CLAUDE_CODE_USE_VERTEX` 이면 `GOOGLE_*`/`CLOUD_ML_*`/`GCLOUD_*`.
 - 한 저장소의 연결된 worktree 들은 세션 목록(ref)을 공유합니다. 활성 세션은 worktree 마다 따로입니다.
 - 한 저장소에서 Claude Code 세션을 동시에 여럿 돌리면 대기 중인 프롬프트 맥락 하나를 공유하므로, 한 단계에 다른 세션의 프롬프트가 붙을 수 있습니다.
 - 주의: `git push --mirror`, `git clone --mirror` 는 `refs/flickbook/*` 를 포함한 모든 ref 를 복사하며 그 안에 프롬프트가 들어 있습니다. 먼저 `flickbook rm <id>` 를 하거나 브랜치를 명시해 push 하세요. 일반 `git push` / `git clone` 은 이 ref 를 옮기지 않습니다.

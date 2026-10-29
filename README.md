@@ -102,7 +102,7 @@ Nothing leaves your machine until you set a provider.
 - The web server binds to `127.0.0.1` only, loads no remote assets, and rejects requests from other origins.
 - If you set a provider, the step's diff (up to 60 KB) and the prompt context are sent to the provider behind that CLI. Not before.
 - Snapshots include untracked files that are not ignored, so a large file or a secret such as an unignored `.env` is stored too and, if a provider is set, its diff is sent. List such files in `.gitignore` or `.git/info/exclude`.
-- The `claude` process only receives the minimal environment listed above, not your full shell environment. If you sign in to Claude through a cloud provider (for example AWS Bedrock) with credentials in other variables, those are not passed, so use a regular Claude login or `ANTHROPIC_*` settings.
+- The `claude` process only receives the minimal environment listed above, not your full shell environment. Cloud credentials are passed only for the cloud Claude Code is set to use: `AWS_*` when `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_MANTLE` or `CLAUDE_CODE_USE_ANTHROPIC_AWS` is set, `GOOGLE_*`/`CLOUD_ML_*`/`GCLOUD_*` when `CLAUDE_CODE_USE_VERTEX` is set.
 - Linked worktrees of one repository share the list of sessions (the refs); the active session is per worktree.
 - Concurrent Claude Code sessions in one repository share one pending prompt context, so a step can carry another session's prompt.
 - Caveat: `git push --mirror` and `git clone --mirror` copy all refs, including `refs/flickbook/*`, which contain your prompts. Run `flickbook rm <id>` first, or push branches explicitly. A normal `git push` / `git clone` does not transfer them.

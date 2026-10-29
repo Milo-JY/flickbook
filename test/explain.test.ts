@@ -312,3 +312,18 @@ describe('explain providers (unit 7)', () => {
     expect((await explainStep(repo, id, 1)).text.trim()).toBe('- canned');
   });
 });
+
+describe('minimalEnv cloud credentials', () => {
+  it('passes AWS_* only with CLAUDE_CODE_USE_BEDROCK and GOOGLE_* only with CLAUDE_CODE_USE_VERTEX', async () => {
+    const { minimalEnv } = await import('../src/explain/run.js');
+    const base = { PATH: '/bin', AWS_REGION: 'r', GOOGLE_APPLICATION_CREDENTIALS: 'g', GITHUB_TOKEN: 't' };
+    expect(Object.keys(minimalEnv(base)).sort()).toEqual(['PATH']);
+    expect(minimalEnv({ ...base, CLAUDE_CODE_USE_BEDROCK: '1' })).toMatchObject({ AWS_REGION: 'r' });
+    expect(minimalEnv({ ...base, CLAUDE_CODE_USE_BEDROCK: '1' })).not.toHaveProperty('GOOGLE_APPLICATION_CREDENTIALS');
+    expect(minimalEnv({ ...base, CLAUDE_CODE_USE_MANTLE: '1' })).toMatchObject({ AWS_REGION: 'r' });
+    expect(minimalEnv({ ...base, CLAUDE_CODE_USE_ANTHROPIC_AWS: '1' })).toMatchObject({ AWS_REGION: 'r' });
+    expect(minimalEnv({ ...base, CLAUDE_CODE_USE_VERTEX: '1' })).toMatchObject({ GOOGLE_APPLICATION_CREDENTIALS: 'g' });
+    expect(minimalEnv({ ...base, CLAUDE_CODE_USE_VERTEX: '1' })).not.toHaveProperty('AWS_REGION');
+    expect(minimalEnv({ ...base, CLAUDE_CODE_USE_BEDROCK: '1', CLAUDE_CODE_USE_VERTEX: '1' })).not.toHaveProperty('GITHUB_TOKEN');
+  });
+});

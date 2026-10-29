@@ -33,6 +33,9 @@ export function minimalEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   for (const [k, v] of Object.entries(env)) {
     if (v === undefined) continue;
     if (ENV_KEEP.has(k) || k.startsWith('LC_') || k.startsWith('ANTHROPIC_') || k.startsWith('CLAUDE_')) out[k] = v;
+    // cloud sign-in: pass that cloud's credentials only when Claude Code is set to use it
+    else if ((env['CLAUDE_CODE_USE_BEDROCK'] || env['CLAUDE_CODE_USE_MANTLE'] || env['CLAUDE_CODE_USE_ANTHROPIC_AWS']) && k.startsWith('AWS_')) out[k] = v;
+    else if (env['CLAUDE_CODE_USE_VERTEX'] && (k.startsWith('GOOGLE_') || k.startsWith('CLOUD_ML_') || k.startsWith('GCLOUD_'))) out[k] = v;
   }
   return out;
 }
