@@ -36,9 +36,9 @@ describe('prompt data fence', () => {
   });
 });
 
-describe('four-part prompt', () => {
+describe('five-part prompt', () => {
   const base = { diff: '+x\n', files: ['M a.txt'], note: 'n', context: 'c', truncated: false, omitted: [] };
-  it('asks for the four labeled parts in English', () => {
+  it('asks for the five labeled parts in English', () => {
     const p = buildPrompt({ ...base, lang: 'en' });
     for (const l of ['Requested:', 'Done:', 'Gap:', 'Check yourself:']) expect(p).toContain(`"${l}"`);
     expect(p.indexOf('"Requested:"')).toBeLessThan(p.indexOf('"Done:"'));
@@ -47,10 +47,27 @@ describe('four-part prompt', () => {
     expect(p).toContain('NOT requested');
     expect(p).toContain('Write the explanation in English');
   });
-  it('asks for the four labeled parts in Korean', () => {
+  it('asks for the five labeled parts in Korean', () => {
     const p = buildPrompt({ ...base, lang: 'ko' });
     for (const l of ['요청한 것:', '실제로 한 것:', '차이:', '직접 확인할 곳:']) expect(p).toContain(`"${l}"`);
     expect(p).toContain('Write the explanation in Korean');
+  });
+  it('asks for 1-3 real concepts after Check yourself, as "- name — meaning" (en)', () => {
+    const p = buildPrompt({ ...base, lang: 'en' });
+    expect(p).toContain('"Concepts:"');
+    expect(p.indexOf('"Check yourself:"')).toBeLessThan(p.indexOf('"Concepts:"'));
+    expect(p).toContain('Use exactly these five parts');
+    expect(p).toContain('"- <name> — <one plain sentence: what it means here>"');
+    expect(p).toContain('only real, standard concept names');
+    expect(p).toContain('if none apply, say so');
+    expect(p).toContain('In "Concepts:", write the concept name in English');
+  });
+  it('asks for Korean concept names with the English term in parentheses (ko)', () => {
+    const p = buildPrompt({ ...base, lang: 'ko' });
+    expect(p).toContain('"쓰인 개념:"');
+    expect(p.indexOf('"직접 확인할 곳:"')).toBeLessThan(p.indexOf('"쓰인 개념:"'));
+    expect(p).toContain('In "쓰인 개념:", write the Korean concept name with the English term in parentheses');
+    expect(p).toContain('입력 검증(input validation)');
   });
   it('has the no-request instruction and keeps the data-not-instructions rule', () => {
     for (const lang of ['en', 'ko']) {
@@ -62,7 +79,7 @@ describe('four-part prompt', () => {
     }
   });
   it('bumps the template version', () => {
-    expect(TEMPLATE_VERSION).not.toBe('v2');
+    expect(['v2', 'v3']).not.toContain(TEMPLATE_VERSION);
     expect(buildPrompt({ ...base, lang: 'en' })).toContain(`explanation prompt ${TEMPLATE_VERSION}`);
   });
 });
