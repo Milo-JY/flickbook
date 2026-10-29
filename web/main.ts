@@ -1,6 +1,7 @@
 import { html as diffToHtml } from 'diff2html';
 import 'diff2html/bundles/css/diff2html.min.css';
 import './style.css';
+import { translate, pickLang, type MessageKey } from './i18n';
 
 interface SessionSummary { id: string; steps: number; start: string; last: string; active: boolean; note: string }
 interface StepInfo {
@@ -25,6 +26,8 @@ const state = {
   explainError: '',
   busy: false,
 };
+
+const t = (key: MessageKey, vars?: Record<string, string | number>): string => translate(state.config.lang, key, vars);
 
 const app = document.getElementById('app')!;
 
@@ -75,7 +78,7 @@ async function selectStep(n: number): Promise<void> {
 }
 
 function showFatal(e: unknown): void {
-  app.replaceChildren(el('div', { cls: 'empty', text: `Error: ${(e as Error).message}` }));
+  app.replaceChildren(el('div', { cls: 'empty', text: t('error.prefix', { message: (e as Error).message }) }));
 }
 
 async function explainNow(): Promise<void> {
@@ -90,12 +93,16 @@ async function explainNow(): Promise<void> {
   state.busy = false; render();
 }
 
+function kindLabel(kind: string): string {
+  return kind === 'baseline' || kind === 'step' || kind === 'end' ? t(`kind.${kind}`) : kind;
+}
+
 function renderSteps(): HTMLElement {
   const box = el('aside', { id: 'steps' });
   for (const s of state.steps) {
     const row = el('div', { cls: 'step' + (s.n === state.sel ? ' sel' : '') });
-    row.append(el('div', { cls: 'top' }, el('span', { cls: 'num', text: pad(s.n) }), el('span', { cls: 'kind', text: s.kind })));
-    row.append(el('div', { cls: 'meta', text: `${shortTime(s.time)} · ${s.filesChanged} file(s) · ${s.source}` }));
+    row.append(el('div', { cls: 'top' }, el('span', { cls: 'num', text: pad(s.n) }), el('span', { cls: 'kind', text: kindLabel(s.kind) })));
+    row.append(el('div', { cls: 'meta', text: `${shortTime(s.time)} · ${t('step.files', { n: s.filesChanged })} · ${s.source}` }));
     if (s.note) row.append(el('div', { cls: 'note', text: s.note }));
     if (s.context) row.append(el('div', { cls: 'prompt', text: firstLine(s.context) }));
     row.addEventListener('click', () => void selectStep(s.n));
@@ -112,12 +119,12 @@ function renderCenter(): HTMLElement {
     b.addEventListener('click', () => { state.file = idx; render(); });
     tabs.append(b);
   };
-  mk(`All (${state.files.length})`, -1);
+  mk(t('tabs.all', { n: state.files.length }), -1);
   state.files.forEach((f, i) => mk(`${f.status} ${f.path}`, i));
   const diff = el('div', { id: 'diff' });
   const shown = state.file === -1 ? state.files : state.files.filter((_, i) => i === state.file);
   if (shown.length === 0) {
-    diff.append(el('div', { cls: 'empty', text: state.sel === 0 ? `Step 0 is the baseline: the state you marked with "${state.config.name} start". Pick a later step.` : 'No file changes in this view.' }));
+    diff.append(el('div', { cls: 'empty', text: state.sel === 0 ? t('diff.baselineEmpty', { name: state.config.name }) : t('diff.noChanges') }));
   } else {
     // diff2html escapes file content; the string it returns is the only thing assigned as HTML
     diff.innerHTML = diffToHtml(shown.map((f) => f.diff).join('\n'), {
@@ -134,32 +141,32 @@ function renderExplain(): HTMLElement {
   if (!s) return box;
   if (s.context || s.agentSummary) {
     const why = el('div', { cls: 'why' });
-    if (s.context) why.append(el('div', {}, el('b', { text: 'Prompt: ' }), firstLine(s.context)));
-    if (s.agentSummary) why.append(el('div', {}, el('b', { text: 'Agent said: ' }), firstLine(s.agentSummary)));
+    if (s.context) why.append(el('div', {}, el('b', { text: t('why.prompt') }), firstLine(s.context)));
+    if (s.agentSummary) why.append(el('div', {}, el('b', { text: t('why.agent') }), firstLine(s.agentSummary)));
     box.append(why);
   }
-  box.append(el('h2', { text: 'Explanation' }));
-  if (state.sel === 0) { box.append(el('div', { cls: 'hint', text: 'Baseline: nothing to explain.' })); return box; }
+  box.append(el('h2', { text: t('explain.heading') }));
+  if (state.sel === 0) { box.append(el('div', { cls: 'hint', text: t('explain.baselineHint') })); return box; }
   const ex = cache.get(state.sel);
   if (s.filesChanged === 0) {
-    box.append(el('div', { cls: 'hint', text: 'No file changes in this step.' }));
+    box.append(el('div', { cls: 'hint', text: t('explain.noChanges') }));
   } else if (state.config.provider === 'none') {
-    box.append(el('div', { cls: 'hint', text: `No explanation provider is set, so nothing is generated and nothing leaves your machine.\n\nTo enable explanations run:\n  git config ${state.config.name}.provider claude\n(or codex), then reload.` }));
+    box.append(el('div', { cls: 'hint', text: t('explain.noProvider', { name: state.config.name }) }));
   } else if (ex?.text) {
     if (state.config.explanationReveal === 'click' && !state.revealed) {
-      const b = el('button', { cls: 'btn', text: 'Reveal explanation' });
+      const b = el('button', { cls: 'btn', text: t('explain.reveal') });
       b.addEventListener('click', () => { state.revealed = true; render(); });
       box.append(b);
     } else {
       box.append(el('pre', { text: ex.text }));
     }
   } else if (ex === undefined) {
-    box.append(el('div', { cls: 'hint', text: 'Loading…' }));
+    box.append(el('div', { cls: 'hint', text: t('explain.loading') }));
   } else {
-    const b = el('button', { cls: 'btn', text: state.busy ? 'Explaining…' : state.explainError ? 'Failed, retry' : 'Explain this step' });
+    const b = el('button', { cls: 'btn', text: state.busy ? t('explain.busy') : state.explainError ? t('explain.retry') : t('explain.button') });
     b.disabled = state.busy;
     b.addEventListener('click', () => void explainNow());
-    box.append(b, el('div', { cls: 'hint', text: `\nSends this step's diff to your "${state.config.provider}" CLI.` }));
+    box.append(b, el('div', { cls: 'hint', text: t('explain.sends', { provider: state.config.provider }) }));
     if (state.explainError) box.append(el('div', { cls: 'err', text: state.explainError }));
   }
   return box;
@@ -177,8 +184,8 @@ function seg(opts: [string, string][], current: string, on: (v: string) => void)
 
 function render(): void {
   const header = el('header', {}, el('h1', { text: state.config.name }), el('span', { cls: 'sess', text: state.sessionId }), el('span', { cls: 'spacer' }),
-    seg([['prev', 'vs previous'], ['baseline', 'vs baseline']], state.base, (v) => { state.base = v as 'prev' | 'baseline'; void loadStep().catch(showFatal); }),
-    seg([['line-by-line', 'unified'], ['side-by-side', 'split']], state.layout, (v) => { state.layout = v as typeof state.layout; render(); }),
+    seg([['prev', t('diff.prev')], ['baseline', t('diff.baseline')]], state.base, (v) => { state.base = v as 'prev' | 'baseline'; void loadStep().catch(showFatal); }),
+    seg([['line-by-line', t('layout.unified')], ['side-by-side', t('layout.split')]], state.layout, (v) => { state.layout = v as typeof state.layout; render(); }),
   );
   const main = el('main', {}, renderSteps(), renderCenter(), renderExplain());
   const prevScroll = document.querySelector('#steps')?.scrollTop ?? 0;
@@ -189,8 +196,8 @@ function render(): void {
 
 function showEmpty(): void {
   app.replaceChildren(el('div', { cls: 'empty' },
-    el('h2', { text: 'No sessions in this repository yet' }),
-    el('p', { text: 'Mark a baseline, let your agent (or you) edit files, then snapshot a step:' }),
+    el('h2', { text: t('empty.title') }),
+    el('p', { text: t('empty.body') }),
     el('pre', { text: `${state.config.name} start\n# ...edit...\n${state.config.name} step -m "what changed"\n${state.config.name} end` }),
   ));
 }
@@ -203,6 +210,7 @@ window.addEventListener('keydown', (e) => {
 
 async function init(): Promise<void> {
   state.config = await getJson<Config>('/api/config');
+  document.documentElement.lang = pickLang(state.config.lang);
   document.title = state.config.name;
   state.sessions = (await getJson<{ sessions: SessionSummary[] }>('/api/sessions')).sessions;
   const [, hid, hstep] = location.hash.split('/');
