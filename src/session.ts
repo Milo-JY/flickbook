@@ -179,7 +179,8 @@ export async function startSession(repo: Repo, opts: StartOptions = {}): Promise
     agentSummary: '',
   });
   const commit = await commitTree(repo, tree, null, msg);
-  const ok = await createRef(repo, `${REF_PREFIX}/${id}/0000`, commit, ZERO_OID);
+  const baseRef = `${REF_PREFIX}/${id}/0000`;
+  const ok = await createRef(repo, baseRef, commit, ZERO_OID);
   if (!ok) throw new RrError(`session ${id} already exists (started twice within one second?)`);
   // pointer: write a temp file then hard-link it into place — fails atomically if another start won.
   await mkdir(repo.rr, { recursive: true });
@@ -188,6 +189,8 @@ export async function startSession(repo: Repo, opts: StartOptions = {}): Promise
   try {
     await link(tmp, pointerPath(repo));
   } catch {
+    // do not leave an orphaned baseline behind: delete it only if it is still the one we wrote
+    await git(['update-ref', '-d', '--end-of-options', baseRef, commit], { cwd: repo.top, allowFail: true });
     throw new RrError(`another session was started at the same time; run "${NAME} list"`);
   } finally {
     await rm(tmp, { force: true });

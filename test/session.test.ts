@@ -37,6 +37,15 @@ describe('start/step/end/list (unit 3)', () => {
     expect((await endSession(repo)).status).toBe('inactive');
   });
 
+  it('start that loses the pointer race removes its orphaned baseline ref', async () => {
+    const dir = makeRepo();
+    const repo = await openRepo(dir);
+    mkdirSync(repo.rr, { recursive: true });
+    writeFileSync(join(repo.rr, 'current'), 'not a valid id!\n'); // not "active", but the link target exists
+    await expect(startSession(repo)).rejects.toThrow(/started at the same time/);
+    expect(git(dir, 'for-each-ref', `refs/${NAME}/`).trim()).toBe('');
+  });
+
   it('start while active is an error', async () => {
     const repo = await openRepo(makeRepo());
     await startSession(repo);
