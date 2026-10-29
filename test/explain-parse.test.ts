@@ -91,6 +91,23 @@ describe('explanation parsing', () => {
     expect(gapIsCalm({ key: 'gap', label: 'Gap', lines: [{ bullet: true, text: 'nothing is missing' }, { bullet: true, text: 'deleted a file' }] })).toBe(false);
   });
 
+  it('recognizes label variants: heading, numbering, bold, indent, case, full-width colon, CRLF', () => {
+    const keys = (t: string) => parseExplanation(t)!.parts.map((x) => x.key);
+    const all = ['requested', 'done', 'gap', 'check', 'concepts'];
+    expect(keys('**Requested:** a\n**Done**: b\n## Gap\n1. Check yourself: c\n   Concepts： d')).toEqual(all);
+    expect(keys('Requested: a\r\nDONE: b\r\ngap: c\r\ncheck Yourself: d\r\n__Concepts__: e')).toEqual(all);
+    expect(keys('2) Requested: a\n# **Done**\n**차이：** x\n직접 확인할 곳： y')).toEqual(['requested', 'done', 'gap', 'check']);
+    const p = parseExplanation('**Requested:** a\r\n**Done:** b\r\n  more\r\n')!;
+    expect(p.parts[0]!.lines).toEqual([{ bullet: false, text: 'a' }]);
+    expect(p.parts[1]!.lines).toEqual([{ bullet: false, text: 'b' }, { bullet: false, text: 'more' }]);
+  });
+
+  it('does not start a card from prose that merely begins with a label word', () => {
+    const p = parseExplanation('Requested: a\nDone: b\n- Done: refactor\nDone with the rest\n## Done it\n**Gap** is wide')!;
+    expect(p.parts.map((x) => x.key)).toEqual(['requested', 'done']);
+    expect(p.parts[1]!.lines.map((l) => l.text)).toEqual(['b', 'Done: refactor', 'Done with the rest', '## Done it', '**Gap** is wide']);
+  });
+
   it('finds the changed file a Check yourself line starts with (longest, whole path only)', () => {
     const files = ['cart.js', 'cart.test.js', 'src/a.ts'];
     expect(leadingPath('cart.js, total(): check', files)).toBe('cart.js');

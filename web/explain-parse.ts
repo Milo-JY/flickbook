@@ -16,7 +16,23 @@ const LABELS: Record<string, PartKey> = {
   '직접 확인할 곳': 'check',
   '쓰인 개념': 'concepts',
 };
-const PART_LABEL = new RegExp(`^(?:- )?(${Object.keys(LABELS).join('|')}):[ \\t]*(.*)$`);
+const BY_LOWER = new Map(Object.keys(LABELS).map((k) => [k.toLowerCase(), k]));
+// Tolerates "## Done", "1. Done:", "**Done:**", "**Done**:", indentation, wrong case, a full-width colon.
+// Without a colon it counts only as a heading or bold line that holds nothing else.
+const PART_LABEL = new RegExp(
+  `^\\s*(#+\\s*)?(?:\\d+[.)]\\s*)?(\\*\\*|__)?(${Object.keys(LABELS).join('|')})(?:\\*\\*|__)?[ \\t]*([:：])?(?:\\*\\*|__)?[ \\t]*(.*)$`,
+  'i',
+);
+
+function matchLabel(raw: string): { label: string; rest: string } | null {
+  const m = PART_LABEL.exec(raw);
+  if (!m) return null;
+  const label = BY_LOWER.get(m[3]!.toLowerCase());
+  if (!label) return null;
+  const rest = m[5]!.trim();
+  if (!m[4] && (rest || !(m[1] || m[2]))) return null;
+  return { label, rest };
+}
 
 export interface Line { bullet: boolean; text: string }
 export interface Part { key: PartKey; label: string; lines: Line[] }
@@ -26,11 +42,11 @@ export interface Parsed { pre: string; parts: Part[] }
 export function parseExplanation(text: string): Parsed | null {
   const parts: Part[] = [];
   const pre: string[] = [];
-  for (const raw of text.split('\n')) {
-    const m = PART_LABEL.exec(raw);
+  for (const raw of text.split(/\r?\n/)) {
+    const m = matchLabel(raw);
     if (m) {
-      parts.push({ key: LABELS[m[1]!]!, label: m[1]!, lines: [] });
-      if (m[2]!.trim()) parts[parts.length - 1]!.lines.push(toLine(m[2]!));
+      parts.push({ key: LABELS[m.label]!, label: m.label, lines: [] });
+      if (m.rest) parts[parts.length - 1]!.lines.push(toLine(m.rest));
     } else if (parts.length) {
       if (raw.trim()) parts[parts.length - 1]!.lines.push(toLine(raw));
     } else pre.push(raw);
