@@ -1,0 +1,42 @@
+{
+  "name": "reviewroll",
+  "version": "0.1.0",
+  "description": "Rewind and read what an AI coding agent (or you) changed, step by step, in a local web UI. Nothing leaves your machine.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "reviewroll": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.ko.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "code-review",
+    "git",
+    "claude-code",
+    "diff",
+    "ai-agents"
+  ],
+  "scripts": {
+    "build": "tsup && vite build --config web/vite.config.ts",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p web/tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "commander": "^15.0.0",
+    "diff2html": "^3.4.56"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsup": "^9.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}
