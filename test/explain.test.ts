@@ -33,8 +33,23 @@ describe('explain providers (unit 7)', () => {
     expect(a.text).toContain('stub explanation');
     expect(readFileSync(stub.count, 'utf8').trim().split('\n')).toHaveLength(1);
     const argv = readFileSync(stub.log, 'utf8').split('\n');
-    expect(argv).toEqual(expect.arrayContaining(['-p', '--no-session-persistence', '--tools', '--output-format', 'text']));
+    expect(argv).toEqual(
+      expect.arrayContaining([
+        '-p',
+        '--no-session-persistence',
+        '--tools',
+        '--output-format',
+        'text',
+        '--safe-mode',
+        '--strict-mcp-config',
+        '--disable-slash-commands',
+      ]),
+    );
     expect(argv[argv.indexOf('--tools') + 1]).toBe('');
+    expect(argv).not.toContain('--mcp-config');
+    const [cwd, ...listing] = readFileSync(stub.cwd, 'utf8').trim().split('\n');
+    expect(cwd).not.toBe(dir);
+    expect(listing).toEqual([]);
     const prompt = readFileSync(stub.stdin, 'utf8');
     expect(prompt).toContain('+two');
     expect(prompt).toContain('make a say two');
@@ -79,8 +94,12 @@ describe('explain providers (unit 7)', () => {
     expect(r.text).toContain('stub codex explanation');
     const argv = readFileSync(stub.log, 'utf8').split('\n');
     expect(argv.slice(0, 2)).toEqual(['exec', '-s']);
-    expect(argv).toEqual(expect.arrayContaining(['read-only', '--ephemeral', '--skip-git-repo-check', '-C', '-o', '-']));
+    expect(argv).toEqual(
+      expect.arrayContaining(['read-only', '--ephemeral', '--skip-git-repo-check', '--ignore-user-config', '--ignore-rules', '-C', '-o', '-']),
+    );
+    expect(argv[argv.indexOf('-c') + 1]).toBe('mcp_servers={}');
     expect(argv[argv.indexOf('-C') + 1]).not.toBe(dir);
+    expect(readFileSync(stub.cwd, 'utf8').split('\n')[0]).not.toBe(dir);
   });
 
   it('missing CLI on PATH gives a clear error and failures are not retried or cached', async () => {

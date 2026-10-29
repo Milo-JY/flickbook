@@ -26,8 +26,24 @@ function claudeProvider(model: string | undefined): Provider {
   return {
     explain: (input) =>
       withEmptyDir((dir) => {
-        // all tools off, no session saved, empty cwd: the model sees only the prompt
-        const args = ['-p', '--output-format', 'text', '--tools', '', '--no-session-persistence'];
+        // Isolation from the user's own Claude Code setup, in an empty cwd:
+        //  --safe-mode               no CLAUDE.md, skills, plugins, hooks, MCP servers, custom commands/agents
+        //                            (unlike --bare it keeps normal auth, so OAuth logins still work)
+        //  --strict-mcp-config       with no --mcp-config: no MCP servers from any source
+        //  --disable-slash-commands  no skills or commands
+        //  --tools ""                no built-in tools
+        //  --no-session-persistence  nothing saved to disk
+        const args = [
+          '-p',
+          '--output-format',
+          'text',
+          '--safe-mode',
+          '--strict-mcp-config',
+          '--disable-slash-commands',
+          '--tools',
+          '',
+          '--no-session-persistence',
+        ];
         if (model) args.push('--model', model);
         return runCli('claude', args, { input: input.prompt, cwd: dir });
       }),
@@ -39,8 +55,23 @@ function codexProvider(model: string | undefined): Provider {
     explain: (input) =>
       withEmptyDir(async (dir) => {
         const outFile = join(dir, 'out.txt');
-        // read-only sandbox, empty cwd, nothing persisted
-        const args = ['exec', '-s', 'read-only', '--ephemeral', '--skip-git-repo-check', '-C', dir, '-o', outFile];
+        // read-only sandbox, empty cwd, nothing persisted; the user's config.toml (MCP servers, profiles,
+        // hooks) and execpolicy rules are not loaded, and MCP servers are emptied for any other config layer
+        const args = [
+          'exec',
+          '-s',
+          'read-only',
+          '--ephemeral',
+          '--skip-git-repo-check',
+          '--ignore-user-config',
+          '--ignore-rules',
+          '-c',
+          'mcp_servers={}',
+          '-C',
+          dir,
+          '-o',
+          outFile,
+        ];
         if (model) args.push('-m', model);
         args.push('-');
         const stdout = await runCli('codex', args, { input: input.prompt, cwd: dir });
