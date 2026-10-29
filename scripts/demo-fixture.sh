@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds a throwaway git repo with a 3-step diffroll session, for recording the demo GIF.
-#   usage: scripts/demo-fixture.sh [target-dir]      (default: a new mktemp dir)
+#   usage: scripts/demo-fixture.sh      (always builds in a fresh mktemp dir; takes no arguments)
 # Then:  cd <printed dir> && node <path-to>/dist/cli.js replay
 #
 # The explanations come from the DEMO-ONLY "fixture" provider (canned text from a JSON file).
@@ -13,8 +13,10 @@ CLI="node $HERE/dist/cli.js"
 NAME=$(sed -n "s/^export const NAME = '\(.*\)';/\1/p" "$HERE/src/name.ts")
 [ -f "$HERE/dist/cli.js" ] || { echo "run 'pnpm build' first" >&2; exit 1; }
 
-DIR=${1:-$(mktemp -d "${TMPDIR:-/tmp}/demo.XXXXXX")}
-mkdir -p "$DIR"
+# never write into an existing directory: it could be a real repository
+[ $# -eq 0 ] || { echo "usage: $0   (takes no arguments; it always creates a fresh temp dir)" >&2; exit 2; }
+DIR=$(mktemp -d "${TMPDIR:-/tmp}/demo.XXXXXX")
+[ -z "$(ls -A "$DIR")" ] || { echo "refusing: $DIR is not empty" >&2; exit 1; }
 cd "$DIR"
 # prompt files live outside the repo so they never show up in a snapshot
 PROMPTS=$(mktemp -d "${TMPDIR:-/tmp}/demo-prompts.XXXXXX")
