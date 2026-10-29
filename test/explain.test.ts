@@ -136,6 +136,30 @@ describe('explain providers (unit 7)', () => {
     expect(readFileSync(stub.stdin, 'utf8')).toContain('Korean');
   });
 
+  it('lang is normalized (ko-KR, KO -> ko; ja, junk -> en) and a real change gives a new cache key', async () => {
+    const dir = makeRepo();
+    const stub = makeStub('claude');
+    process.env['PATH'] = `${stub.binDir}:${oldPath}`;
+    git(dir, 'config', `${NAME}.provider`, 'claude');
+    const { repo, id } = await session(dir);
+    const spawns = () => readFileSync(stub.count, 'utf8').trim().split('\n').length;
+    await explainStep(repo, id, 1);
+    expect(spawns()).toBe(1);
+    git(dir, 'config', `${NAME}.lang`, 'ko-KR');
+    await explainStep(repo, id, 1);
+    expect(spawns()).toBe(2);
+    expect(readFileSync(stub.stdin, 'utf8')).toContain('Write the explanation in Korean');
+    for (const same of ['KO', 'ko', 'ko-kr']) {
+      git(dir, 'config', `${NAME}.lang`, same);
+      expect((await explainStep(repo, id, 1)).cached).toBe(true);
+    }
+    for (const en of ['ja', 'en-US', 'x y']) {
+      git(dir, 'config', `${NAME}.lang`, en);
+      expect((await explainStep(repo, id, 1)).cached).toBe(true); // same key as the first (en) run
+    }
+    expect(spawns()).toBe(2);
+  });
+
   it('provider unset: nothing is spawned and the error explains how to enable', async () => {
     const dir = makeRepo();
     const stub = makeStub('claude');

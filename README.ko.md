@@ -70,7 +70,7 @@ flickbook explain                        # 최근 단계 (--step N · --all)
 
 해설은 라벨이 붙은 다섯 부분으로 구성됩니다: **요청한 것**(기록된 프롬프트나 단계 메모에서 가져온, 내가 부탁한 내용. 기록이 없으면 없다고 밝히고 비교는 하지 않습니다), **실제로 한 것**(diff 가 실제로 바꾸는 것), **차이**(요청했지만 빠진 것과, 요청하지 않았는데 바뀐 것), **직접 확인할 곳**(diff 만으로는 확인할 수 없는 부분 위주로 꼼꼼히 읽어야 할 1~3곳), **쓰인 개념**(이 단계에 쓰였거나 썼어야 할 설계·엔지니어링 개념 1~3개. 입력 검증(input validation), 경계값(boundary values)처럼 영어 용어를 함께 적고 한 문장으로 풀어 주어, 무엇을 찾아보면 되는지 알 수 있습니다). 웹 화면에서 각 부분은 접고 펼 수 있는 카드이며, 차이·직접 확인할 곳·쓰인 개념은 펼친 채로 시작합니다. 요청을 기록하려면 Claude Code 훅이나 `flickbook step -m "..."` 를 쓰세요.
 
-`git config flickbook.lang ko` 로 해설과 웹 화면을 모두 한국어로 바꿀 수 있습니다(기본값 `en`, 알 수 없는 값은 영어). CLI 메시지와 서버가 돌려주는 오류 문구는 영어로 남습니다.
+`git config flickbook.lang ko` 로 해설과 웹 화면을 모두 한국어로 바꿀 수 있습니다(기본값 `en`; `ko`, `ko-KR` 처럼 `ko` 로 시작하는 값은 한국어, 그 밖의 값은 영어). CLI 메시지와 서버가 돌려주는 오류 문구는 영어로 남습니다.
 
 해설은 이미 설치된 `claude` 또는 `codex` CLI 를 쓰며, 빈 임시 디렉토리에서, 사용자 자신의 에이전트 설정과 떨어뜨려 실행합니다: `claude` 는 도구 없이 `--safe-mode`(CLAUDE.md·스킬·플러그인·훅·MCP 서버 없음)·`--strict-mcp-config`·`--disable-slash-commands` 로, `codex` 는 읽기 전용 샌드박스에서 `--ignore-user-config`·`--ignore-rules` 와 MCP 서버 없이 실행합니다. 버튼을 누르거나 `flickbook explain` 을 실행할 때만 생성되고, `.git/flickbook/explain/` 에 캐시되며, 생성된 뒤에는 단계를 고르는 즉시 보입니다.
 

@@ -19,8 +19,8 @@ export interface ExplainOptions {
 }
 
 export async function resolveLang(repo: Repo): Promise<string> {
-  const l = (await gitConfig(repo, `${NAME}.lang`)) ?? DEFAULTS.explanationLang;
-  return /^[A-Za-z-]{2,12}$/.test(l) ? l : DEFAULTS.explanationLang;
+  const l = ((await gitConfig(repo, `${NAME}.lang`)) ?? DEFAULTS.explanationLang).trim().toLowerCase();
+  return l === 'ko' || l.startsWith('ko-') ? 'ko' : 'en';
 }
 
 interface Prepared {
