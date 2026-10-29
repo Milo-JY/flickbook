@@ -6,6 +6,9 @@ import { activeId, endSession, listSessions, readSteps, startSession, stepSessio
 import { CLI, git, makeRepo, runCli } from './helpers.js';
 import { execFileSync, spawn } from 'node:child_process';
 import { NAME } from '../src/name.js';
+import { commitTree, createRef, snapshotTree } from '../src/snapshot.js';
+import { formatMessage } from '../src/meta.js';
+import { REF_PREFIX, ZERO_OID } from '../src/config.js';
 
 describe('start/step/end/list (unit 3)', () => {
   it('start -> step x2 -> end creates 0000..0003 and clears the pointer', async () => {
@@ -92,9 +95,12 @@ describe('start/step/end/list (unit 3)', () => {
         if (injected) return;
         injected = true;
         // another actor sees a different tree and takes number 0001 first
-        const other = await openRepo(dir);
+        // (written directly: stepSession itself is serialized by the repo lock, which is what we bypass here)
         writeFileSync(join(dir, 'a.txt'), 'B\n');
-        await stepSession(other, { note: 'winner' });
+        const base = (await readSteps(repo, id))[0]!;
+        const msg = formatMessage(1, { session: id, kind: 'step', source: 'cli', head: '(none)', note: 'winner', context: '', agentSummary: '' });
+        const c = await commitTree(repo, await snapshotTree(repo), base.commit, msg);
+        await createRef(repo, `${REF_PREFIX}/${id}/0001`, c, ZERO_OID);
         writeFileSync(join(dir, 'a.txt'), 'A\n');
       },
     });
@@ -159,5 +165,38 @@ describe('start/step/end/list (unit 3)', () => {
     const r = await runCli(dir, ['rm', id, '--yes']);
     expect(r.code).toBe(0);
     expect(git(dir, 'for-each-ref', `refs/${NAME}/`).trim()).toBe('');
+  });
+});
+
+describe('end vs step/end races', () => {
+  it('a step that was in flight when end ran does not land after the end snapshot', async () => {
+    const dir = makeRepo();
+    const repo = await openRepo(dir);
+    const { id } = await startSession(repo);
+    writeFileSync(join(dir, 'a.txt'), 'late\n');
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let reached!: () => void;
+    const at = new Promise<void>((r) => (reached = r));
+    const step = stepSession(repo, { beforeRef: async () => { reached(); await gate; } });
+    await at;
+    writeFileSync(join(dir, 'a.txt'), 'later\n'); // end sees a different tree than the in-flight step
+    const end = endSession(repo); // must queue behind the in-flight step
+    release();
+    await Promise.all([step.catch(() => undefined), end]);
+    const kinds = (await readSteps(repo, id)).map((s) => s.meta.kind);
+    expect(kinds.filter((k) => k === 'end')).toHaveLength(1);
+    expect(kinds[kinds.length - 1]).toBe('end');
+  });
+
+  it('concurrent end processes produce exactly one end snapshot', async () => {
+    for (let round = 0; round < 3; round++) {
+      const dir = makeRepo();
+      const repo = await openRepo(dir);
+      const { id } = await startSession(repo);
+      await Promise.all([runCli(dir, ['end']), runCli(dir, ['end']), runCli(dir, ['end'])]);
+      const kinds = (await readSteps(repo, id)).map((s) => s.meta.kind);
+      expect(kinds.filter((k) => k === 'end')).toHaveLength(1);
+    }
   });
 });

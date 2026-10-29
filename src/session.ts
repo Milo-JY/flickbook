@@ -1,11 +1,11 @@
-import { readFile, writeFile, rm, link, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, rm, link, mkdir, open } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { git } from './git.js';
 import type { Repo } from './repo.js';
 import { RrError } from './errors.js';
 import { REF_PREFIX, ZERO_OID, LIMITS } from './config.js';
-import { snapshotTree, commitTree, createRef } from './snapshot.js';
+import { snapshotTree, commitTree, createRef, pidAlive } from './snapshot.js';
 import { formatMessage, localIso, parseMessage, type Kind, type StepMeta } from './meta.js';
 import { NAME } from './name.js';
 
@@ -247,7 +247,43 @@ async function appendSnapshot(
   throw new RrError('could not allocate a step number (too much concurrent activity)');
 }
 
+/**
+ * Serializes step/end per repo so a step cannot land after an end and two ends cannot both write.
+ * The lock file holds its owner's pid; a lock whose owner is gone is taken over.
+ */
+async function withLock<T>(repo: Repo, fn: () => Promise<T>): Promise<T> {
+  await mkdir(repo.rr, { recursive: true });
+  const lock = join(repo.rr, 'lock');
+  const deadline = Date.now() + LIMITS.lockWaitMs;
+  for (;;) {
+    try {
+      const fh = await open(lock, 'wx');
+      await fh.writeFile(`${process.pid}\n`);
+      await fh.close();
+      break;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
+    }
+    const owner = Number.parseInt(await readFile(lock, 'utf8').catch(() => ''), 10);
+    if (owner && !pidAlive(owner)) {
+      await rm(lock, { force: true });
+      continue;
+    }
+    if (Date.now() > deadline) throw new RrError(`another ${NAME} step/end is still running (lock ${lock})`);
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  try {
+    return await fn();
+  } finally {
+    await rm(lock, { force: true });
+  }
+}
+
 export async function stepSession(repo: Repo, opts: StepOptions = {}): Promise<StepResult> {
+  return withLock(repo, () => stepLocked(repo, opts));
+}
+
+async function stepLocked(repo: Repo, opts: StepOptions): Promise<StepResult> {
   const id = await activeId(repo);
   if (!id) {
     if (opts.ifActive) return { status: 'inactive' };
@@ -257,6 +293,10 @@ export async function stepSession(repo: Repo, opts: StepOptions = {}): Promise<S
 }
 
 export async function endSession(repo: Repo, opts: { note?: string } = {}): Promise<StepResult> {
+  return withLock(repo, () => endLocked(repo, opts));
+}
+
+async function endLocked(repo: Repo, opts: { note?: string }): Promise<StepResult> {
   const id = await activeId(repo);
   if (!id) return { status: 'inactive' };
   // always writes an end snapshot, even when nothing changed: the end time must be recorded

@@ -26,6 +26,8 @@ export const LIMITS = {
   /** A tmp index older than this is considered abandoned by a killed process. */
   staleTmpIndexMs: 10 * 60 * 1000,
   stepAttempts: 5,
+  /** How long step/end wait for another step/end on the same repo before giving up. */
+  lockWaitMs: 30_000,
 };
 
 /** Bumped when the prompt template changes; part of the explanation cache key. */
