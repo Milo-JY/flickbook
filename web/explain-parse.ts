@@ -94,10 +94,11 @@ export function gapIsCalm(part: Part): boolean {
 /** The changed file a "Check yourself" line starts with (longest match), followed by a space, punctuation or the end. */
 export function leadingPath(text: string, paths: string[]): string | null {
   let best: string | null = null;
+  const s = text.startsWith('`') ? text.slice(1) : text; // a path wrapped in backticks
   for (const p of paths) {
-    if (!p || !text.startsWith(p)) continue;
-    const next = text.charAt(p.length);
-    if (next !== '' && !/[\s,:;.()'"`]/.test(next)) continue;
+    if (!p || !s.startsWith(p)) continue;
+    const next = s.charAt(p.length);
+    if (next !== '' && !/[\s,:;()'"`]/.test(next) && !(next === '.' && /^\s*$/.test(s.charAt(p.length + 1)))) continue;
     if (!best || p.length > best.length) best = p;
   }
   return best;

@@ -116,5 +116,10 @@ describe('explanation parsing', () => {
     expect(leadingPath('cart.jsx is not changed', files)).toBeNull();
     expect(leadingPath('total() in cart.js', files)).toBeNull();
     expect(leadingPath('src/a.ts', files)).toBe('src/a.ts');
+    expect(leadingPath('src/a.ts.bak x', files)).toBeNull();
+    expect(leadingPath('src/a.ts. Then', files)).toBe('src/a.ts');
+    expect(leadingPath('src/a.ts.', files)).toBe('src/a.ts');
+    expect(leadingPath('`src/a.ts` total()', files)).toBe('src/a.ts');
+    expect(leadingPath('`cart.js`, total()', files)).toBe('cart.js');
   });
 });
