@@ -175,7 +175,7 @@ describe('explain providers (unit 7)', () => {
     const stub = makeStub('claude');
     writeFileSync(join(stub.binDir, 'claude'), `#!/bin/sh\necho x >> '${stub.count}'\nsleep 5\n`);
     process.env['PATH'] = `${stub.binDir}:${oldPath}`;
-    process.env['FLICKBOOK_EXPLAIN_TIMEOUT_MS'] = '300';
+    process.env['FLICKBOOK_EXPLAIN_TIMEOUT_MS'] = '2000'; // long enough for the stub to record its call under load
     git(dir, 'config', `${NAME}.provider`, 'claude');
     const { repo, id } = await session(dir);
     try {
