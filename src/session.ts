@@ -139,7 +139,7 @@ export async function latestSessionId(repo: Repo): Promise<string | null> {
 }
 
 async function headSha(repo: Repo): Promise<string> {
-  const r = await git(['rev-parse', '--verify', '-q', 'HEAD'], { cwd: repo.top, allowFail: true });
+  const r = await git(['rev-parse', '--verify', '-q', '--end-of-options', 'HEAD'], { cwd: repo.top, allowFail: true });
   return r.code === 0 ? r.stdout.trim() : '(none)';
 }
 
@@ -264,7 +264,7 @@ export async function endSession(repo: Repo, opts: { note?: string } = {}): Prom
 
 export async function removeSession(repo: Repo, id: string): Promise<number> {
   const steps = await readSteps(repo, id);
-  for (const s of steps) await git(['update-ref', '-d', s.ref], { cwd: repo.top });
+  for (const s of steps) await git(['update-ref', '-d', '--end-of-options', s.ref], { cwd: repo.top });
   if ((await activeId(repo)) === id) await removePointer(repo);
   return steps.length;
 }

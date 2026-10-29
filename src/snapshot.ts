@@ -70,14 +70,15 @@ export async function commitTree(
   parent: string | null,
   message: string,
 ): Promise<string> {
-  const args = ['commit-tree', tree];
+  const args = ['commit-tree'];
   if (parent) args.push('-p', parent);
+  args.push('--end-of-options', tree);
   const r = await git(args, { cwd: repo.top, env: IDENT, input: message });
   return r.stdout.trim();
 }
 
 /** Create `ref` only if it does not exist yet. Returns false on a lost race. */
 export async function createRef(repo: Repo, ref: string, commit: string, zero: string): Promise<boolean> {
-  const r = await git(['update-ref', ref, commit, zero], { cwd: repo.top, allowFail: true });
+  const r = await git(['update-ref', '--end-of-options', ref, commit, zero], { cwd: repo.top, allowFail: true });
   return r.code === 0;
 }

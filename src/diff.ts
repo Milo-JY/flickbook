@@ -16,7 +16,7 @@ export interface FileDiff extends FileChange {
 const COMMON = ['diff-tree', '-r', '-M', '--no-color', '--no-ext-diff', '--no-textconv'];
 
 export async function nameStatus(repo: Repo, a: string, b: string): Promise<FileChange[]> {
-  const r = await git([...COMMON, '--name-status', '-z', a, b], { cwd: repo.top });
+  const r = await git([...COMMON, '--name-status', '-z', '--end-of-options', a, b], { cwd: repo.top });
   const parts = r.stdout.split('\0');
   const out: FileChange[] = [];
   for (let i = 0; i < parts.length; ) {
@@ -58,7 +58,7 @@ function pathFromHeader(chunk: string): string {
 export async function diffFiles(repo: Repo, a: string, b: string): Promise<FileDiff[]> {
   const [changes, patch] = await Promise.all([
     nameStatus(repo, a, b),
-    git([...COMMON, '-p', a, b], { cwd: repo.top }).then((r) => r.stdout),
+    git([...COMMON, '-p', '--end-of-options', a, b], { cwd: repo.top }).then((r) => r.stdout),
   ]);
   const chunks = splitPatch(patch);
   if (chunks.length === changes.length) {
