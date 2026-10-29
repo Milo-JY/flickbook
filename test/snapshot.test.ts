@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, utimesSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, utimesSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { openRepo } from '../src/repo.js';
-import { snapshotTree } from '../src/snapshot.js';
+import { cleanStaleTmp, snapshotTree } from '../src/snapshot.js';
 import { startSession, stepSession } from '../src/session.js';
 import { git, makeRepo } from './helpers.js';
 import { NAME } from '../src/name.js';
@@ -94,5 +94,35 @@ describe('snapshot (unit 2)', () => {
     expect(r1.status).toBe('created');
     expect(r2.status).toBe('unchanged');
     expect(git(dir, 'for-each-ref', `refs/${NAME}/${id}/`).trim().split('\n')).toHaveLength(2);
+  });
+});
+
+describe('stale tmp cleanup vs a live snapshot', () => {
+  it('does not delete the live temp index of a concurrent snapshot, even when the user index is old', async () => {
+    const dir = makeRepo();
+    for (let i = 0; i < 1500; i++) writeFileSync(join(dir, `f${i}.txt`), `${i}\n`);
+    const old = new Date(Date.now() - 3600_000);
+    utimesSync(join(dir, '.git', 'index'), old, old);
+    const repo = await openRepo(dir);
+    const live = snapshotTree(repo);
+    let seen = false;
+    let survived = true;
+    for (let i = 0; i < 20000 && !seen; i++) {
+      let names: string[] = [];
+      try { names = readdirSync(repo.rr).filter((n) => /^tmp-index-[^.]*$/.test(n)); } catch { /* not yet */ }
+      for (const n of names) {
+        const p = join(repo.rr, n);
+        try {
+          if (Date.now() - statSync(p).mtimeMs < 1800_000) continue; // utimes not applied yet
+        } catch { continue; }
+        seen = true;
+        await cleanStaleTmp(repo);
+        survived = existsSync(p);
+      }
+      if (!seen) await new Promise((r) => setImmediate(r));
+    }
+    await live;
+    expect(seen).toBe(true);
+    expect(survived).toBe(true);
   });
 });

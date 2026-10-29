@@ -25,7 +25,21 @@ async function exists(p: string): Promise<boolean> {
   }
 }
 
-/** Remove tmp indexes left behind by killed processes (never a live one's). */
+/** True unless the process is known to be gone (EPERM means it exists but belongs to someone else). */
+export function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
+/**
+ * Remove tmp files left behind by killed processes (never a live one's). The temp index keeps the
+ * user's index mtime, so age alone cannot tell it is live: the name carries the owner's pid
+ * (`tmp-<kind>-<pid>-<rand>[.lock]`) and only a file whose owner is gone and that is old enough goes.
+ */
 export async function cleanStaleTmp(repo: Repo): Promise<void> {
   let names: string[];
   try {
@@ -35,6 +49,8 @@ export async function cleanStaleTmp(repo: Repo): Promise<void> {
   }
   for (const n of names) {
     if (!n.startsWith('tmp-')) continue;
+    const pid = /^tmp-[a-z]+-(\d+)-/.exec(n)?.[1];
+    if (pid && pidAlive(Number.parseInt(pid, 10))) continue;
     const p = join(repo.rr, n);
     try {
       const st = await stat(p);

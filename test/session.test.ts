@@ -110,7 +110,7 @@ describe('start/step/end/list (unit 3)', () => {
     const repo = await openRepo(dir);
     await startSession(repo);
     mkdirSync(repo.rr, { recursive: true });
-    const stale = join(repo.rr, 'tmp-index-999-dead');
+    const stale = join(repo.rr, 'tmp-index-2147483646-dead');
     writeFileSync(stale, 'garbage');
     const old = new Date(Date.now() - 3600_000);
     utimesSync(stale, old, old);
