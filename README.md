@@ -58,6 +58,8 @@ git config flickbook.lang ko             # default: en
 flickbook explain                        # latest step (or --step N / --all)
 ```
 
+Each explanation has four labeled parts: **Requested** (what you asked for, from the recorded prompt and/or the step note; if no request was recorded it says so and makes no comparison), **Done** (what the diff actually changes), **Gap** (what was asked but is missing, and what changed without being asked), and **Check yourself** (1-3 places to read closely, especially what the diff alone cannot confirm). To record the request, use the Claude Code hook or `flickbook step -m "..."`.
+
 `git config flickbook.lang ko` switches both the explanations and the web UI to Korean (default `en`; unknown values fall back to English). CLI messages and error texts from the server stay in English.
 
 Explanations use the `claude` or `codex` CLI you already have, run in an empty temporary directory and kept away from your own agent setup: `claude` with no tools, `--safe-mode` (no CLAUDE.md, skills, plugins, hooks or MCP servers), `--strict-mcp-config` and `--disable-slash-commands`; `codex` in a read-only sandbox with `--ignore-user-config`, `--ignore-rules` and no MCP servers. They are generated only when you click the button or run `flickbook explain`, cached in `.git/flickbook/explain/`, and shown immediately once they exist.
