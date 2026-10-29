@@ -21,6 +21,16 @@ describe('commit-message metadata', () => {
     expect(m.context).toContain('forged');
   });
 
+  it('strips C0 control characters (except tab/newline) from every free-text field', () => {
+    const bad = 'a\x00b\x1ec\x1fd\x07e\r\tf\ng';
+    const msg = formatMessage(1, { ...base, note: bad, source: bad, head: bad, context: bad, agentSummary: bad });
+    expect(msg).not.toMatch(/[\x00-\x08\x0b-\x1f]/);
+    const m = parseMessage(msg);
+    expect(m.context).toBe('abcde\tf\ng');
+    expect(m.agentSummary).toBe('abcde\tf\ng');
+    expect(m.note).toBe('abcde f g');
+  });
+
   it('note is one line; context is capped at 4 KB on a char boundary', () => {
     const m = parseMessage(formatMessage(1, { ...base, note: 'a\nb', context: '한'.repeat(5000) }));
     expect(m.note).toBe('a b');

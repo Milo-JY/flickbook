@@ -40,8 +40,15 @@ export function localIso(d = new Date()): string {
   );
 }
 
+/** C0 control characters except \t and \n (NUL included): never let user/agent text carry them into git. */
+const CONTROL = /[\x00-\x08\x0b-\x1f]/g;
+
+export function stripControl(s: string): string {
+  return s.replace(CONTROL, '');
+}
+
 function oneLine(s: string, max: number): string {
-  return s.replace(/\s+/g, ' ').trim().slice(0, max);
+  return stripControl(s).replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
 /** Keep free text from forging a section marker. */
@@ -64,9 +71,11 @@ export function formatMessage(n: number, m: Omit<StepMeta, 'format' | 'time'> & 
     `head: ${oneLine(m.head, 64)}`,
     `note: ${oneLine(m.note, LIMITS.noteChars)}`,
   ];
-  if (m.context) lines.push('--- context ---', escapeBody(truncateBytes(m.context, LIMITS.contextBytes)));
-  if (m.agentSummary)
-    lines.push('--- agent-summary ---', escapeBody(truncateBytes(m.agentSummary, LIMITS.agentSummaryBytes)));
+  const context = stripControl(m.context);
+  const agentSummary = stripControl(m.agentSummary);
+  if (context) lines.push('--- context ---', escapeBody(truncateBytes(context, LIMITS.contextBytes)));
+  if (agentSummary)
+    lines.push('--- agent-summary ---', escapeBody(truncateBytes(agentSummary, LIMITS.agentSummaryBytes)));
   return lines.join('\n') + '\n';
 }
 
