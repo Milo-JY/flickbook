@@ -29,7 +29,7 @@ export const LIMITS = {
 };
 
 /** Bumped when the prompt template changes; part of the explanation cache key. */
-export const TEMPLATE_VERSION = 'v5';
+export const TEMPLATE_VERSION = 'v6';
 export const FORMAT_VERSION = 1;
 export const REF_PREFIX = `refs/${NAME}`;
 export const ZERO_OID = '0000000000000000000000000000000000000000';

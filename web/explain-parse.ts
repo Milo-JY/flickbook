@@ -66,29 +66,11 @@ export function splitConcept(text: string): { name: string; meaning: string } {
   return m ? { name: m[1]!.trim(), meaning: m[2]!.trim() } : { name: text.trim(), meaning: '' };
 }
 
-// Gap is shown calm only when it is one short sentence that says nothing is missing, has no "but" clause
-// and reports no unrequested change (the prompt asks Gap to list those too).
-const NOTHING_MISSING = /\bnothing (?:is )?missing\b|\beverything (?:requested |asked for )?(?:is )?(?:covered|there|done|included|in place)\b|\ball there\b|\bno gaps?\b|모두 (?:반영|들어|포함)|빠진 (?:것|부분|기능)(?:이|은|도) 없|차이(?:가|는) 없/i;
-const BUT = /\bbut\b|\bhowever\b|\bexcept\b|\balthough\b|지만|다만|그러나|단,/i;
-const UNREQUESTED_EN = /unrequested|not (?:requested|asked)|outside (?:of )?(?:the|your) request|beyond the request|out of scope/gi;
-const UNREQUESTED_KO = /요청하지 (?:않은|않았)|요청 밖|요청에 없는|요청 범위 밖/g;
-const NEGATION_BEFORE = /\b(?:no|nothing|none|without|zero)\b[^.;,:]{0,30}$/i;
-const NEGATION_AFTER = /^[^.;,:]{0,20}없/;
-function hasUnrequested(all: string): boolean {
-  for (const m of all.matchAll(UNREQUESTED_EN)) {
-    if (!NEGATION_BEFORE.test(all.slice(Math.max(0, m.index - 40), m.index))) return true;
-  }
-  for (const m of all.matchAll(UNREQUESTED_KO)) {
-    if (!NEGATION_AFTER.test(all.slice(m.index + m[0].length))) return true;
-  }
-  return false;
-}
-const CALM_MAX = 160;
+// Gap is shown calm only when it is exactly "None." (en) or "없음." (ko): the prompt asks for that text
+// when nothing is missing and nothing unrequested changed, and any other wording is listed as usual.
+const GAP_NONE = /^(?:none|없음)\.?$/i;
 export function gapIsCalm(part: Part): boolean {
-  if (part.lines.length !== 1) return false;
-  const all = part.lines[0]!.text;
-  if (all.length > CALM_MAX || /[.!?。]\s+\S/.test(all)) return false;
-  return NOTHING_MISSING.test(all) && !BUT.test(all) && !hasUnrequested(all);
+  return part.lines.length === 1 && GAP_NONE.test(part.lines[0]!.text.trim());
 }
 
 /** The changed file a "Check yourself" line starts with (longest match), followed by a space, punctuation or the end. */

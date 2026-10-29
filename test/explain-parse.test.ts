@@ -68,27 +68,24 @@ describe('explanation parsing', () => {
     expect(splitConcept('Atomicity: all or nothing')).toEqual({ name: 'Atomicity', meaning: 'all or nothing' });
   });
 
-  it('shows Gap calm only when it says nothing is missing without a "but"', () => {
+  it('shows Gap calm only when its whole text is "None." or "없음."', () => {
     const gap = (s: string) => gapIsCalm({ key: 'gap', label: 'Gap', lines: [{ bullet: false, text: s }] });
-    expect(gap('everything requested is covered and nothing unrequested changed.')).toBe(true);
-    expect(gap('the feature is all there, but there is no range validation.')).toBe(false);
+    expect(gap('None.')).toBe(true);
+    expect(gap('None')).toBe(true);
+    expect(gap(' none. ')).toBe(true);
+    expect(gap('없음.')).toBe(true);
+    expect(gap('없음')).toBe(true);
+    expect(gap('No gaps, removed the auth check')).toBe(false);
+    expect(gap('Nothing missing — I also refactored')).toBe(false);
+    expect(gap('Nothing is missing and no unrequested changes.')).toBe(false);
+    expect(gap('빠진 것은 없습니다.')).toBe(false);
+    expect(gap('없음. 다만 테스트를 삭제했습니다.')).toBe(false);
     expect(gap('the tests for 0% are missing.')).toBe(false);
-    expect(gap('요청한 내용은 모두 반영됐고, 요청하지 않은 변경은 없습니다.')).toBe(true);
-    expect(gap('요청한 테스트는 들어갔지만, 경계값은 테스트하지 않습니다.')).toBe(false);
-    expect(gap('요청한 기능은 모두 들어갔습니다. 다만 범위 검사는 없습니다.')).toBe(false);
   });
 
-  it('Gap is not calm when it lists an unrequested change, or runs past one short sentence', () => {
-    const gap = (s: string) => gapIsCalm({ key: 'gap', label: 'Gap', lines: [{ bullet: false, text: s }] });
-    expect(gap('Everything requested is done. Unrequested: deleted tests.')).toBe(false);
-    expect(gap('빠진 것은 없습니다. 요청 밖 변경: 테스트 삭제.')).toBe(false);
-    expect(gap('Nothing is missing; deleted tests that were not requested.')).toBe(false);
-    expect(gap('요청에 없는 파일을 추가했습니다. 빠진 것은 없습니다.')).toBe(false);
-    expect(gap('Nothing is missing and no unrequested changes.')).toBe(true);
-    expect(gap('빠진 것은 없고 요청하지 않은 변경도 없습니다.')).toBe(true);
-    expect(gap('Everything requested is done.')).toBe(true);
-    expect(gap('빠진 것은 없습니다.')).toBe(true);
-    expect(gapIsCalm({ key: 'gap', label: 'Gap', lines: [{ bullet: true, text: 'nothing is missing' }, { bullet: true, text: 'deleted a file' }] })).toBe(false);
+  it('Gap with more than one line is not calm', () => {
+    expect(gapIsCalm({ key: 'gap', label: 'Gap', lines: [{ bullet: true, text: 'None.' }, { bullet: true, text: 'deleted a file' }] })).toBe(false);
+    expect(gapIsCalm({ key: 'gap', label: 'Gap', lines: [] })).toBe(false);
   });
 
   it('recognizes label variants: heading, numbering, bold, indent, case, full-width colon, CRLF', () => {
