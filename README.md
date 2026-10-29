@@ -5,7 +5,6 @@ Mark a baseline, let any agent (or yourself) edit, and replay every step as a di
 
 [한국어](README.ko.md)
 
-<!-- demo GIF: recorded separately, to be added at docs/demo.gif -->
 ![flickbook demo](docs/demo.gif)
 
 ## Why

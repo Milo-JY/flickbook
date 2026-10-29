@@ -5,7 +5,6 @@
 
 [English](README.md)
 
-<!-- 데모 GIF: 별도 녹화 후 docs/demo.gif 에 추가 -->
 ![flickbook demo](docs/demo.gif)
 
 ## 왜 필요한가
