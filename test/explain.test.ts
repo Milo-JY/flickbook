@@ -110,7 +110,7 @@ describe('explain providers (unit 7)', () => {
     const { repo, id } = await session(dir, 'first reason');
     await endSession(repo);
     writeFileSync(join(dir, 'a.txt'), 'one\n');
-    const second = (await startSession(repo)).id;
+    const second = (await startSession(repo, { name: 'second' })).id;
     writeFileSync(join(dir, 'a.txt'), 'one\ntwo\n'); // same diff as the first session's step 1
     await stepSession(repo, { note: 'edit-a', context: 'a different reason' });
     const spawns = () => readFileSync(stub.count, 'utf8').trim().split('\n').length;
