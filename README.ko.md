@@ -58,6 +58,8 @@ git config flickbook.lang ko             # 기본값 en
 flickbook explain                        # 최근 단계 (--step N · --all)
 ```
 
+`git config flickbook.lang ko` 로 해설과 웹 화면을 모두 한국어로 바꿀 수 있습니다(기본값 `en`, 알 수 없는 값은 영어). CLI 메시지와 서버가 돌려주는 오류 문구는 영어로 남습니다.
+
 해설은 이미 설치된 `claude` 또는 `codex` CLI 를 쓰며, 빈 임시 디렉토리에서, 사용자 자신의 에이전트 설정과 떨어뜨려 실행합니다: `claude` 는 도구 없이 `--safe-mode`(CLAUDE.md·스킬·플러그인·훅·MCP 서버 없음)·`--strict-mcp-config`·`--disable-slash-commands` 로, `codex` 는 읽기 전용 샌드박스에서 `--ignore-user-config`·`--ignore-rules` 와 MCP 서버 없이 실행합니다. 버튼을 누르거나 `flickbook explain` 을 실행할 때만 생성되고, `.git/flickbook/explain/` 에 캐시되며, 생성된 뒤에는 단계를 고르는 즉시 보입니다.
 
 ### Claude Code 훅

@@ -58,6 +58,8 @@ git config flickbook.lang ko             # default: en
 flickbook explain                        # latest step (or --step N / --all)
 ```
 
+`git config flickbook.lang ko` switches both the explanations and the web UI to Korean (default `en`; unknown values fall back to English). CLI messages and error texts from the server stay in English.
+
 Explanations use the `claude` or `codex` CLI you already have, run in an empty temporary directory and kept away from your own agent setup: `claude` with no tools, `--safe-mode` (no CLAUDE.md, skills, plugins, hooks or MCP servers), `--strict-mcp-config` and `--disable-slash-commands`; `codex` in a read-only sandbox with `--ignore-user-config`, `--ignore-rules` and no MCP servers. They are generated only when you click the button or run `flickbook explain`, cached in `.git/flickbook/explain/`, and shown immediately once they exist.
 
 ### Claude Code hook
