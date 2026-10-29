@@ -11,7 +11,7 @@ Mark a baseline, let any agent (or yourself) edit, and replay every step as a di
 
 When I started my first developer job, I had senior colleagues, but they were busy, and writing good code is a different skill from explaining it. I'd hear "this is wrong," but not why, and not that the problem had a name (idempotency, input validation, race conditions...). Without the name I couldn't even search for it.
 
-Now AI writes a lot of the code. It's faster, but more code gets accepted without anyone really reading it. In an [Anthropic study](https://www.anthropic.com/research/AI-assistance-coding-skills), developers who used AI assistance scored 17% lower on a code-comprehension quiz. Moving on without understanding is now easier for everyone.
+Now AI writes a lot of the code. It's faster, but more code gets accepted without anyone really reading it. In an [Anthropic study](https://www.anthropic.com/research/AI-assistance-coding-skills), developers who used AI assistance scored 17% lower on a quiz about the library they had just used. Moving on without understanding is now easier for everyone.
 
 flickbook lets you flip through what your AI changed, one page at a time: what you asked for, what it actually did, what differs (missed or out of scope), where to check by hand, and the names of the concepts involved.
 
