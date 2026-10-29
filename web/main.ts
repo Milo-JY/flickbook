@@ -191,7 +191,7 @@ function lineContent(p: Part, text: string, paths: string[]): (Node | string)[] 
   a.type = 'button';
   a.title = t('part.jump', { path });
   a.addEventListener('click', () => jumpToFile(path));
-  return [a, text.slice(path.length)];
+  return [a, text.slice((text.startsWith('`') ? 1 : 0) + path.length)];
 }
 
 function renderExplanationText(text: string): HTMLElement[] {

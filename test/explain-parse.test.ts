@@ -78,6 +78,19 @@ describe('explanation parsing', () => {
     expect(gap('요청한 기능은 모두 들어갔습니다. 다만 범위 검사는 없습니다.')).toBe(false);
   });
 
+  it('Gap is not calm when it lists an unrequested change, or runs past one short sentence', () => {
+    const gap = (s: string) => gapIsCalm({ key: 'gap', label: 'Gap', lines: [{ bullet: false, text: s }] });
+    expect(gap('Everything requested is done. Unrequested: deleted tests.')).toBe(false);
+    expect(gap('빠진 것은 없습니다. 요청 밖 변경: 테스트 삭제.')).toBe(false);
+    expect(gap('Nothing is missing; deleted tests that were not requested.')).toBe(false);
+    expect(gap('요청에 없는 파일을 추가했습니다. 빠진 것은 없습니다.')).toBe(false);
+    expect(gap('Nothing is missing and no unrequested changes.')).toBe(true);
+    expect(gap('빠진 것은 없고 요청하지 않은 변경도 없습니다.')).toBe(true);
+    expect(gap('Everything requested is done.')).toBe(true);
+    expect(gap('빠진 것은 없습니다.')).toBe(true);
+    expect(gapIsCalm({ key: 'gap', label: 'Gap', lines: [{ bullet: true, text: 'nothing is missing' }, { bullet: true, text: 'deleted a file' }] })).toBe(false);
+  });
+
   it('finds the changed file a Check yourself line starts with (longest, whole path only)', () => {
     const files = ['cart.js', 'cart.test.js', 'src/a.ts'];
     expect(leadingPath('cart.js, total(): check', files)).toBe('cart.js');
