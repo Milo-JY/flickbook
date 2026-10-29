@@ -135,6 +135,26 @@ function renderCenter(): HTMLElement {
   return c;
 }
 
+// The four parts (en or ko labels). Model text is shown with textContent only; text that does not
+// follow the format (fewer than two labels found) is shown as-is.
+const PART_LABEL = /^(?:- )?(Requested|Done|Gap|Check yourself|요청한 것|실제로 한 것|차이|직접 확인할 곳):[ \t]*(.*)$/;
+function renderExplanationText(text: string): HTMLElement[] {
+  const parts: { label: string; lines: string[] }[] = [];
+  const pre: string[] = [];
+  for (const line of text.split('\n')) {
+    const m = PART_LABEL.exec(line);
+    if (m) parts.push({ label: m[1]!, lines: m[2] ? [m[2]] : [] });
+    else (parts.length ? parts[parts.length - 1]!.lines : pre).push(line);
+  }
+  if (parts.length < 2) return [el('pre', { text })];
+  const out: HTMLElement[] = [];
+  if (pre.join('').trim()) out.push(el('pre', { text: pre.join('\n').trim() }));
+  for (const p of parts) {
+    out.push(el('h3', { cls: 'part', text: p.label }), el('pre', { text: p.lines.join('\n').trim() }));
+  }
+  return out;
+}
+
 function renderExplain(): HTMLElement {
   const box = el('aside', { id: 'explain' });
   const s = state.steps[state.sel];
@@ -158,7 +178,7 @@ function renderExplain(): HTMLElement {
       b.addEventListener('click', () => { state.revealed = true; render(); });
       box.append(b);
     } else {
-      box.append(el('pre', { text: ex.text }));
+      box.append(...renderExplanationText(ex.text));
     }
   } else if (ex === undefined) {
     box.append(el('div', { cls: 'hint', text: t('explain.loading') }));
