@@ -68,6 +68,22 @@ describe('snapshot (unit 2)', () => {
     expect(git(dir, 'cat-file', '-p', `${tree}:a.txt`)).toBe('two\n');
   });
 
+  it('a split user index: snapshots write no sharedindex.* into .git and still see edits', async () => {
+    const dir = makeRepo();
+    git(dir, 'config', 'core.splitIndex', 'true');
+    git(dir, 'update-index', '--split-index');
+    const repo = await openRepo(dir);
+    const shared = () => readdirSync(repo.gitDir).filter((n) => n.startsWith('sharedindex.')).sort();
+    const before = shared();
+    expect(before.length).toBeGreaterThan(0);
+    writeFileSync(join(dir, 'a.txt'), 'edited\n');
+    writeFileSync(join(dir, 'new.txt'), 'new\n');
+    const tree = await snapshotTree(repo);
+    expect(git(dir, 'cat-file', '-p', `${tree}:a.txt`)).toBe('edited\n');
+    expect(git(dir, 'cat-file', '-p', `${tree}:new.txt`)).toBe('new\n');
+    expect(shared()).toEqual(before);
+  });
+
   it('same tree twice yields one ref', async () => {
     const dir = makeRepo();
     const repo = await openRepo(dir);

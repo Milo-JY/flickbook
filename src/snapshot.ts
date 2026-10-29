@@ -13,6 +13,9 @@ const IDENT = {
   GIT_COMMITTER_EMAIL: `${NAME}@localhost`,
 };
 
+/** A split user index must not make the temporary index write sharedindex.* files into the user's .git. */
+const NO_SPLIT = ['-c', 'core.splitIndex=false'];
+
 async function exists(p: string): Promise<boolean> {
   try {
     await access(p);
@@ -60,9 +63,9 @@ export async function snapshotTree(repo: Repo): Promise<string> {
       const st = await stat(userIndex);
       await utimes(tmp, st.atime, st.mtime);
     }
-    else await git(['read-tree', '--empty'], { cwd: repo.top, env });
-    await git(['add', '-A'], { cwd: repo.top, env });
-    const r = await git(['write-tree'], { cwd: repo.top, env });
+    else await git([...NO_SPLIT, 'read-tree', '--empty'], { cwd: repo.top, env });
+    await git([...NO_SPLIT, 'add', '-A'], { cwd: repo.top, env });
+    const r = await git([...NO_SPLIT, 'write-tree'], { cwd: repo.top, env });
     return r.stdout.trim();
   } finally {
     await rm(tmp, { force: true });
