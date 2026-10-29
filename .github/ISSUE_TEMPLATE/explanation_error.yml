@@ -1,0 +1,51 @@
+name: Explanation error
+description: An explanation flickbook showed was wrong or misleading
+labels: [explanation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Explanations are written by an AI model and can be wrong. Reports like this help improve the prompt.
+        Before pasting anything, remove secrets and private code (tokens, keys, internal names, proprietary snippets).
+  - type: dropdown
+    id: part
+    attributes:
+      label: Which part was wrong?
+      options:
+        - Requested
+        - Done
+        - Gap
+        - Check yourself
+        - Concepts
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options:
+        - claude
+        - codex
+    validations:
+      required: true
+  - type: input
+    id: language
+    attributes:
+      label: Explanation language
+      placeholder: en, ko
+    validations:
+      required: true
+  - type: textarea
+    id: explanation
+    attributes:
+      label: The explanation text
+      description: Paste the part that was wrong, with secrets and private code removed.
+    validations:
+      required: true
+  - type: textarea
+    id: truth
+    attributes:
+      label: What is actually true
+      description: What the change really does, or what the explanation should have said.
+    validations:
+      required: true
