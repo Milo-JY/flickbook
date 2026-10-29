@@ -320,6 +320,8 @@ describe('minimalEnv cloud credentials', () => {
     expect(Object.keys(minimalEnv(base)).sort()).toEqual(['PATH']);
     expect(minimalEnv({ ...base, CLAUDE_CODE_USE_BEDROCK: '1' })).toMatchObject({ AWS_REGION: 'r' });
     expect(minimalEnv({ ...base, CLAUDE_CODE_USE_BEDROCK: '1' })).not.toHaveProperty('GOOGLE_APPLICATION_CREDENTIALS');
+    expect(minimalEnv({ ...base, CLAUDE_CODE_USE_BEDROCK: '0' })).not.toHaveProperty('AWS_REGION');
+    expect(minimalEnv({ ...base, CLAUDE_CODE_USE_VERTEX: 'false' })).not.toHaveProperty('GOOGLE_APPLICATION_CREDENTIALS');
     expect(minimalEnv({ ...base, CLAUDE_CODE_USE_MANTLE: '1' })).toMatchObject({ AWS_REGION: 'r' });
     expect(minimalEnv({ ...base, CLAUDE_CODE_USE_ANTHROPIC_AWS: '1' })).toMatchObject({ AWS_REGION: 'r' });
     expect(minimalEnv({ ...base, CLAUDE_CODE_USE_VERTEX: '1' })).toMatchObject({ GOOGLE_APPLICATION_CREDENTIALS: 'g' });
