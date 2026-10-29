@@ -62,7 +62,7 @@ In the web UI use `j` / `k` to move between steps, switch between "vs previous" 
 
 ### Explanations (optional, off by default)
 
-Explanations are written by an AI and can be wrong. That is why every explanation ends with places to check yourself; treat it as a guide to what to read, not as the answer.
+Explanations are written by an AI and can be wrong. That is why every explanation includes places to check yourself; treat it as a guide to what to read, not as the answer.
 
 ```sh
 git config flickbook.provider claude     # or: codex
