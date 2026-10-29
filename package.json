@@ -16,6 +16,15 @@
   "engines": {
     "node": ">=20"
   },
+  "author": "Milo-JY",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Milo-JY/flickbook.git"
+  },
+  "homepage": "https://github.com/Milo-JY/flickbook#readme",
+  "bugs": {
+    "url": "https://github.com/Milo-JY/flickbook/issues"
+  },
   "keywords": [
     "code-review",
     "git",

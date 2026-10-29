@@ -6,7 +6,7 @@
 
 [English](README.md)
 
-![flickbook demo](docs/demo.gif)
+![flickbook demo](https://raw.githubusercontent.com/Milo-JY/flickbook/main/docs/demo.gif)
 
 ```sh
 npx flickbook start                 # 기점 찍기

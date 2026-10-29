@@ -6,7 +6,7 @@ Mark a baseline, let an agent (or yourself) edit, record each step with `flickbo
 
 [한국어](README.ko.md)
 
-![flickbook demo](docs/demo.gif)
+![flickbook demo](https://raw.githubusercontent.com/Milo-JY/flickbook/main/docs/demo.gif)
 
 ```sh
 npx flickbook start                 # mark the baseline
