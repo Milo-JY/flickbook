@@ -59,7 +59,7 @@ git config diffroll.lang ko             # 기본값 en
 diffroll explain                        # 최근 단계 (--step N · --all)
 ```
 
-해설은 이미 설치된 `claude` 또는 `codex` CLI 를 쓰며, 도구를 끄거나(claude) 빈 디렉토리의 읽기 전용 샌드박스(codex)에서 실행합니다. 버튼을 누르거나 `diffroll explain` 을 실행할 때만 생성되고, `.git/diffroll/explain/` 에 캐시되며, 생성된 뒤에는 단계를 고르는 즉시 보입니다.
+해설은 이미 설치된 `claude` 또는 `codex` CLI 를 쓰며, 빈 임시 디렉토리에서, 사용자 자신의 에이전트 설정과 떨어뜨려 실행합니다: `claude` 는 도구 없이 `--safe-mode`(CLAUDE.md·스킬·플러그인·훅·MCP 서버 없음)·`--strict-mcp-config`·`--disable-slash-commands` 로, `codex` 는 읽기 전용 샌드박스에서 `--ignore-user-config`·`--ignore-rules` 와 MCP 서버 없이 실행합니다. 버튼을 누르거나 `diffroll explain` 을 실행할 때만 생성되고, `.git/diffroll/explain/` 에 캐시되며, 생성된 뒤에는 단계를 고르는 즉시 보입니다.
 
 ### Claude Code 훅
 
@@ -87,6 +87,10 @@ provider 를 설정하기 전에는 아무것도 컴퓨터 밖으로 나가지 �
 - 스냅샷·메모·프롬프트 맥락은 저장소의 `.git` 안에만 있습니다.
 - 웹 서버는 `127.0.0.1` 에만 바인드하고, 외부 자원을 불러오지 않으며, 다른 출처의 요청을 거부합니다.
 - provider 를 설정하면 해당 단계의 diff(최대 60 KB)와 프롬프트 맥락이 그 CLI 뒤의 공급자에게 전송됩니다. 설정 전에는 전송되지 않습니다.
+- 스냅샷에는 무시되지 않은 추적 안 되는 파일도 들어가므로, 큰 파일이나 무시 목록에 없는 `.env` 같은 비밀도 저장되고 provider 를 설정했다면 그 diff 가 전송됩니다. 그런 파일은 `.gitignore` 나 `.git/info/exclude` 에 넣으세요.
+- `codex exec` 에는 Codex 홈의 `AGENTS.md` 같은 전역 지침 파일을 건너뛰는 옵션이 없어, 그 내용이 모델에 들어갈 수 있습니다.
+- 한 저장소의 연결된 worktree 들은 세션 목록(ref)을 공유합니다. 활성 세션은 worktree 마다 따로입니다.
+- 한 저장소에서 Claude Code 세션을 동시에 여럿 돌리면 대기 중인 프롬프트 맥락 하나를 공유하므로, 한 단계에 다른 세션의 프롬프트가 붙을 수 있습니다.
 - 주의: `git push --mirror`, `git clone --mirror` 는 `refs/diffroll/*` 를 포함한 모든 ref 를 복사하며 그 안에 프롬프트가 들어 있습니다. 먼저 `diffroll rm <id>` 를 하거나 브랜치를 명시해 push 하세요. 일반 `git push` / `git clone` 은 이 ref 를 옮기지 않습니다.
 
 ## 개발

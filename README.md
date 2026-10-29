@@ -59,7 +59,7 @@ git config diffroll.lang ko             # default: en
 diffroll explain                        # latest step (or --step N / --all)
 ```
 
-Explanations use the `claude` or `codex` CLI you already have, run with tools disabled (claude) or a read-only sandbox in an empty directory (codex). They are generated only when you click the button or run `diffroll explain`, cached in `.git/diffroll/explain/`, and shown immediately once they exist.
+Explanations use the `claude` or `codex` CLI you already have, run in an empty temporary directory and kept away from your own agent setup: `claude` with no tools, `--safe-mode` (no CLAUDE.md, skills, plugins, hooks or MCP servers), `--strict-mcp-config` and `--disable-slash-commands`; `codex` in a read-only sandbox with `--ignore-user-config`, `--ignore-rules` and no MCP servers. They are generated only when you click the button or run `diffroll explain`, cached in `.git/diffroll/explain/`, and shown immediately once they exist.
 
 ### Claude Code hook
 
@@ -87,6 +87,10 @@ Nothing leaves your machine until you set a provider.
 - Snapshots, notes and prompt context live inside your repository's `.git` directory.
 - The web server binds to `127.0.0.1` only, loads no remote assets, and rejects requests from other origins.
 - If you set a provider, the step's diff (up to 60 KB) and the prompt context are sent to the provider behind that CLI. Not before.
+- Snapshots include untracked files that are not ignored, so a large file or a secret such as an unignored `.env` is stored too and, if a provider is set, its diff is sent. List such files in `.gitignore` or `.git/info/exclude`.
+- `codex exec` has no flag to skip global instruction files such as `AGENTS.md` in your Codex home, so those may still reach the model.
+- Linked worktrees of one repository share the list of sessions (the refs); the active session is per worktree.
+- Concurrent Claude Code sessions in one repository share one pending prompt context, so a step can carry another session's prompt.
 - Caveat: `git push --mirror` and `git clone --mirror` copy all refs, including `refs/diffroll/*`, which contain your prompts. Run `diffroll rm <id>` first, or push branches explicitly. A normal `git push` / `git clone` does not transfer them.
 
 ## Development
