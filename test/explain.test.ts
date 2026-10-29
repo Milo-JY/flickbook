@@ -160,6 +160,20 @@ describe('explain providers (unit 7)', () => {
     expect(spawns()).toBe(2);
   });
 
+  it('control characters in the provider output are stripped before caching (newline and tab kept)', async () => {
+    const dir = makeRepo();
+    const stub = makeStub('claude');
+    writeFileSync(join(stub.binDir, 'claude'), `#!/bin/sh\ncat > /dev/null\nprintf 'a\\033[31mred\\033[0m\\001\\000b\\tc\\r\\n- d\\n'\n`);
+    process.env['PATH'] = `${stub.binDir}:${oldPath}`;
+    git(dir, 'config', `${NAME}.provider`, 'claude');
+    const { repo, id } = await session(dir);
+    const r = await explainStep(repo, id, 1);
+    expect(r.text).toBe('a[31mred[0mb\tc\n- d\n');
+    const cached = await readExplanation(repo, id, 1);
+    expect(cached.text).toBe(r.text);
+    expect(cached.text).not.toMatch(/[\x00-\x08\x0b-\x1f]/);
+  });
+
   it('provider unset: nothing is spawned and the error explains how to enable', async () => {
     const dir = makeRepo();
     const stub = makeStub('claude');

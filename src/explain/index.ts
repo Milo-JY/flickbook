@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { DEFAULTS, TEMPLATE_VERSION } from '../config.js';
 import { diffFiles } from '../diff.js';
 import { RrError } from '../errors.js';
+import { stripControl } from '../meta.js';
 import { gitConfig, type Repo } from '../repo.js';
 import { readSteps } from '../session.js';
 import { buildPrompt, limitDiff } from './prompt.js';
@@ -122,7 +123,7 @@ export async function explainStep(
         lang: p.lang,
         prompt: p.prompt,
       });
-      const text = raw.trim();
+      const text = stripControl(raw).trim();
       if (!text) throw new RrError('the provider returned an empty explanation');
       await mkdir(join(repo.rr, 'explain'), { recursive: true });
       const tmp = `${file}.${process.pid}.${randomBytes(3).toString('hex')}.tmp`;
