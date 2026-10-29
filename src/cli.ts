@@ -66,7 +66,7 @@ const pad = (n: number) => String(n).padStart(4, '0');
 const program = new Command();
 program
   .name(NAME)
-  .description('Rewind and read what an AI agent (or you) changed, step by step. Local only.')
+  .description('Replay what an AI agent (or you) changed, step by step. Nothing leaves your machine unless you turn on explanations.')
   .version(VERSION);
 
 program
