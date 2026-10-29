@@ -191,22 +191,20 @@ describe('explain providers (unit 7)', () => {
     expect(existsSync(stub.count)).toBe(false);
   });
 
-  it('codex stub: read-only sandbox, ephemeral, empty cwd, answer read from -o file', async () => {
+  it('provider codex is not supported: clear message, nothing is spawned', async () => {
     const dir = makeRepo();
-    const stub = makeStub('codex');
+    const stub = makeStub('claude');
+    writeFileSync(join(stub.binDir, 'codex'), `#!/bin/sh\necho x >> '${stub.count}'\n`, { mode: 0o755 });
     process.env['PATH'] = `${stub.binDir}:${oldPath}`;
     git(dir, 'config', `${NAME}.provider`, 'codex');
     const { repo, id } = await session(dir);
-    const r = await explainStep(repo, id, 1);
-    expect(r.text).toContain('stub codex explanation');
-    const argv = readFileSync(stub.log, 'utf8').split('\n');
-    expect(argv.slice(0, 2)).toEqual(['exec', '-s']);
-    expect(argv).toEqual(
-      expect.arrayContaining(['read-only', '--ephemeral', '--skip-git-repo-check', '--ignore-user-config', '--ignore-rules', '-C', '-o', '-']),
-    );
-    expect(argv[argv.indexOf('-c') + 1]).toBe('mcp_servers={}');
-    expect(argv[argv.indexOf('-C') + 1]).not.toBe(dir);
-    expect(readFileSync(stub.cwd, 'utf8').split('\n')[0]).not.toBe(dir);
+    await expect(explainStep(repo, id, 1)).rejects.toThrow(/codex.*not supported.*claude/);
+    const r = await runCli(dir, ['explain'], { env: { PATH: `${stub.binDir}:${oldPath}` } });
+    expect(r.code).toBe(1);
+    expect(r.stderr).toMatch(/not supported/);
+    const r2 = await runCli(dir, ['explain', '--provider', 'codex'], { env: { PATH: `${stub.binDir}:${oldPath}` } });
+    expect(r2.code).toBe(1);
+    expect(existsSync(stub.count)).toBe(false);
   });
 
   it('cache key covers the model setting and the step context/note, not only the diff', async () => {

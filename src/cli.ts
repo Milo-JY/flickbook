@@ -153,7 +153,7 @@ program
   .description('generate (and cache) an explanation with your configured provider')
   .option('--step <n>', 'step number (default: latest step)')
   .option('--all', 'every step (calls the provider once per uncached step)')
-  .option('--provider <name>', `claude | codex (overrides git config ${NAME}.provider)`)
+  .option('--provider <name>', `claude (overrides git config ${NAME}.provider)`)
   .option('--force', 'ignore the cache')
   .action(async (id: string | undefined, o: { step?: string; all?: boolean; provider?: string; force?: boolean }) => {
     const repo = await repoHere();

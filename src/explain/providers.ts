@@ -7,7 +7,7 @@ import { runCli } from './run.js';
 import type { ExplainInput } from './prompt.js';
 import { NAME } from '../name.js';
 
-export type ProviderName = 'none' | 'claude' | 'codex' | 'fixture';
+export type ProviderName = 'none' | 'claude' | 'fixture';
 
 export interface Provider {
   explain(input: ExplainInput): Promise<string>;
@@ -50,40 +50,6 @@ function claudeProvider(model: string | undefined): Provider {
   };
 }
 
-function codexProvider(model: string | undefined): Provider {
-  return {
-    explain: (input) =>
-      withEmptyDir(async (dir) => {
-        const outFile = join(dir, 'out.txt');
-        // read-only sandbox, empty cwd, nothing persisted; the user's config.toml (MCP servers, profiles,
-        // hooks) and execpolicy rules are not loaded, and MCP servers are emptied for any other config layer
-        const args = [
-          'exec',
-          '-s',
-          'read-only',
-          '--ephemeral',
-          '--skip-git-repo-check',
-          '--ignore-user-config',
-          '--ignore-rules',
-          '-c',
-          'mcp_servers={}',
-          '-C',
-          dir,
-          '-o',
-          outFile,
-        ];
-        if (model) args.push('-m', model);
-        args.push('-');
-        const stdout = await runCli('codex', args, { input: input.prompt, cwd: dir });
-        try {
-          return await readFile(outFile, 'utf8');
-        } catch {
-          return stdout;
-        }
-      }),
-  };
-}
-
 /**
  * DEMO ONLY. Makes no AI call and sends nothing anywhere: returns canned text from the JSON file named by
  * `git config <NAME>.fixtureFile` ({ "<step note>": "<text>" }), or a generic line built from the file list.
@@ -107,8 +73,11 @@ function fixtureProvider(file: string | undefined): Provider {
 
 export async function resolveProviderName(repo: Repo, override?: string): Promise<ProviderName> {
   const raw = override ?? (await gitConfig(repo, `${NAME}.provider`)) ?? 'none';
-  if (raw === 'none' || raw === 'claude' || raw === 'codex' || raw === 'fixture') return raw;
-  throw new RrError(`unknown provider "${raw.slice(0, 40)}" (use none, claude or codex)`);
+  if (raw === 'none' || raw === 'claude' || raw === 'fixture') return raw;
+  if (raw === 'codex') {
+    throw new RrError(`the "codex" provider is not supported in this version; use claude: git config ${NAME}.provider claude`);
+  }
+  throw new RrError(`unknown provider "${raw.slice(0, 40)}" (use none or claude)`);
 }
 
 export async function makeProvider(repo: Repo, name: ProviderName): Promise<Provider> {
@@ -116,8 +85,6 @@ export async function makeProvider(repo: Repo, name: ProviderName): Promise<Prov
   switch (name) {
     case 'claude':
       return claudeProvider(model);
-    case 'codex':
-      return codexProvider(model);
     case 'fixture':
       return fixtureProvider(await gitConfig(repo, `${NAME}.fixtureFile`));
     case 'none':
@@ -128,5 +95,5 @@ export async function makeProvider(repo: Repo, name: ProviderName): Promise<Prov
 export const PROVIDER_HELP =
   'No explanation provider is set, so nothing was generated and nothing was sent anywhere.\n' +
   'Choose one (it uses the CLI you already have installed):\n' +
-  `  git config ${NAME}.provider claude   # or: codex\n` +
+  `  git config ${NAME}.provider claude\n` +
   'The step diff and your prompt context will then be sent to that CLI\'s provider.';
