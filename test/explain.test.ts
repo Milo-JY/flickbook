@@ -175,13 +175,13 @@ describe('explain providers (unit 7)', () => {
     const stub = makeStub('claude');
     writeFileSync(join(stub.binDir, 'claude'), `#!/bin/sh\necho x >> '${stub.count}'\nsleep 5\n`);
     process.env['PATH'] = `${stub.binDir}:${oldPath}`;
-    process.env['DIFFROLL_EXPLAIN_TIMEOUT_MS'] = '300';
+    process.env['FLICKBOOK_EXPLAIN_TIMEOUT_MS'] = '300';
     git(dir, 'config', `${NAME}.provider`, 'claude');
     const { repo, id } = await session(dir);
     try {
       await expect(explainStep(repo, id, 1)).rejects.toThrow(/timed out/);
     } finally {
-      delete process.env['DIFFROLL_EXPLAIN_TIMEOUT_MS'];
+      delete process.env['FLICKBOOK_EXPLAIN_TIMEOUT_MS'];
     }
     expect(readFileSync(stub.count, 'utf8').trim().split('\n')).toHaveLength(1);
   });

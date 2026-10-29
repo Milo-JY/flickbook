@@ -1,4 +1,4 @@
-# diffroll
+# flickbook
 
 **Rewind and read what your AI coding agent changed, one step at a time.**
 Mark a baseline, let any agent (or yourself) edit, and replay every step as a diff plus an explanation in a local web UI. Nothing leaves your machine.
@@ -6,79 +6,79 @@ Mark a baseline, let any agent (or yourself) edit, and replay every step as a di
 [한국어](README.ko.md)
 
 <!-- demo GIF: recorded separately, to be added at docs/demo.gif -->
-![diffroll demo](docs/demo.gif)
+![flickbook demo](docs/demo.gif)
 
 ## Why
 
-You ask an agent for a change, it touches seven files, and you skim a wall of diff afterwards. diffroll snapshots your working tree at each step so you can read the change in the order it happened, with the prompt that caused it next to the diff.
+You ask an agent for a change, it touches seven files, and you skim a wall of diff afterwards. flickbook snapshots your working tree at each step so you can read the change in the order it happened, with the prompt that caused it next to the diff.
 
 How it differs from nearby tools (as of 2026-10-29, from their public READMEs/docs):
 
-| Tool | What it is | How diffroll differs |
+| Tool | What it is | How flickbook differs |
 |---|---|---|
-| [Hunk](https://github.com/modem-dev/hunk) | Diff viewer for the current state | No timeline and no baseline you pick; diffroll replays a sequence of steps from a baseline you choose |
-| [Entire CLI](https://github.com/entireio/cli) | Commit-linked checkpoints stored in refs that are pushed to the remote, for memory and sharing | diffroll keeps everything in local refs and never pushes; the point is reading, not sharing |
-| Claude Code checkpoints / rewind | Per-prompt undo, Claude only, no explanations | diffroll is read-only for your files, works with any agent or a human, and adds explanations |
-| [learning-opportunities](https://github.com/DrCatHicks/learning-opportunities) | A skill that quizzes you after the work | diffroll shows the diff itself, step by step |
+| [Hunk](https://github.com/modem-dev/hunk) | Diff viewer for the current state | No timeline and no baseline you pick; flickbook replays a sequence of steps from a baseline you choose |
+| [Entire CLI](https://github.com/entireio/cli) | Commit-linked checkpoints stored in refs that are pushed to the remote, for memory and sharing | flickbook keeps everything in local refs and never pushes; the point is reading, not sharing |
+| Claude Code checkpoints / rewind | Per-prompt undo, Claude only, no explanations | flickbook is read-only for your files, works with any agent or a human, and adds explanations |
+| [learning-opportunities](https://github.com/DrCatHicks/learning-opportunities) | A skill that quizzes you after the work | flickbook shows the diff itself, step by step |
 
 ## Install
 
 Requires Node 20+ and git.
 
 ```sh
-npm install -g diffroll
+npm install -g flickbook
 # or run once without installing
-npx diffroll --help
+npx flickbook --help
 ```
 
 ## Usage
 
 ```sh
 cd your-repo
-diffroll start                         # mark the baseline (step 0)
+flickbook start                         # mark the baseline (step 0)
 # ... you or your agent edit files ...
-diffroll step -m "add validation"      # snapshot the working tree as the next step
+flickbook step -m "add validation"      # snapshot the working tree as the next step
 # ... more edits ...
-diffroll step -m "add tests"
-diffroll end                           # final snapshot, closes the session
+flickbook step -m "add tests"
+flickbook end                           # final snapshot, closes the session
 
-diffroll replay                        # open the local web UI (127.0.0.1)
-diffroll list                          # sessions in this repo
-diffroll rm <id>                       # delete a session's snapshots
+flickbook replay                        # open the local web UI (127.0.0.1)
+flickbook list                          # sessions in this repo
+flickbook rm <id>                       # delete a session's snapshots
 ```
 
-A step with no changes since the previous one is skipped. Uncommitted changes and untracked files are included (anything ignored by `.gitignore`, `.git/info/exclude` or your global excludes is not). Snapshots are hidden refs under `refs/diffroll/`; your branch, HEAD, index and files are never touched.
+A step with no changes since the previous one is skipped. Uncommitted changes and untracked files are included (anything ignored by `.gitignore`, `.git/info/exclude` or your global excludes is not). Snapshots are hidden refs under `refs/flickbook/`; your branch, HEAD, index and files are never touched.
 
 In the web UI use `j` / `k` to move between steps, switch between "vs previous" and "vs baseline" (cumulative), and between unified and split.
 
 ### Explanations (optional, off by default)
 
 ```sh
-git config diffroll.provider claude     # or: codex
-git config diffroll.lang ko             # default: en
-diffroll explain                        # latest step (or --step N / --all)
+git config flickbook.provider claude     # or: codex
+git config flickbook.lang ko             # default: en
+flickbook explain                        # latest step (or --step N / --all)
 ```
 
-Explanations use the `claude` or `codex` CLI you already have, run in an empty temporary directory and kept away from your own agent setup: `claude` with no tools, `--safe-mode` (no CLAUDE.md, skills, plugins, hooks or MCP servers), `--strict-mcp-config` and `--disable-slash-commands`; `codex` in a read-only sandbox with `--ignore-user-config`, `--ignore-rules` and no MCP servers. They are generated only when you click the button or run `diffroll explain`, cached in `.git/diffroll/explain/`, and shown immediately once they exist.
+Explanations use the `claude` or `codex` CLI you already have, run in an empty temporary directory and kept away from your own agent setup: `claude` with no tools, `--safe-mode` (no CLAUDE.md, skills, plugins, hooks or MCP servers), `--strict-mcp-config` and `--disable-slash-commands`; `codex` in a read-only sandbox with `--ignore-user-config`, `--ignore-rules` and no MCP servers. They are generated only when you click the button or run `flickbook explain`, cached in `.git/flickbook/explain/`, and shown immediately once they exist.
 
 ### Claude Code hook
 
-`diffroll hook claude` prints a snippet to paste into `~/.claude/settings.json` (or a project's `.claude/settings.json`):
+`flickbook hook claude` prints a snippet to paste into `~/.claude/settings.json` (or a project's `.claude/settings.json`):
 
 ```json
 {
   "hooks": {
     "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "diffroll hook claude-prompt" }] }
+      { "hooks": [{ "type": "command", "command": "flickbook hook claude-prompt" }] }
     ],
     "Stop": [
-      { "hooks": [{ "type": "command", "command": "diffroll hook claude-stop" }] }
+      { "hooks": [{ "type": "command", "command": "flickbook hook claude-stop" }] }
     ]
   }
 }
 ```
 
-Each finished turn becomes one step, with your prompt stored as its context. The hooks do nothing (and print nothing) in repositories without an active session, so a global install is quiet. diffroll does not edit your settings for you.
+Each finished turn becomes one step, with your prompt stored as its context. The hooks do nothing (and print nothing) in repositories without an active session, so a global install is quiet. flickbook does not edit your settings for you.
 
 ## Privacy
 
@@ -91,7 +91,7 @@ Nothing leaves your machine until you set a provider.
 - `codex exec` has no flag to skip global instruction files such as `AGENTS.md` in your Codex home, so those may still reach the model.
 - Linked worktrees of one repository share the list of sessions (the refs); the active session is per worktree.
 - Concurrent Claude Code sessions in one repository share one pending prompt context, so a step can carry another session's prompt.
-- Caveat: `git push --mirror` and `git clone --mirror` copy all refs, including `refs/diffroll/*`, which contain your prompts. Run `diffroll rm <id>` first, or push branches explicitly. A normal `git push` / `git clone` does not transfer them.
+- Caveat: `git push --mirror` and `git clone --mirror` copy all refs, including `refs/flickbook/*`, which contain your prompts. Run `flickbook rm <id>` first, or push branches explicitly. A normal `git push` / `git clone` does not transfer them.
 
 ## Development
 

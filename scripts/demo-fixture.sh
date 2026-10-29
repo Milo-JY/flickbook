@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds a throwaway git repo with a 3-step diffroll session, for recording the demo GIF.
+# Builds a throwaway git repo with a 3-step flickbook session, for recording the demo GIF.
 #   usage: scripts/demo-fixture.sh      (always builds in a fresh mktemp dir; takes no arguments)
 # Then:  cd <printed dir> && node <path-to>/dist/cli.js replay
 #

@@ -9,7 +9,7 @@ describe('product name and version', () => {
       version: string;
       bin: Record<string, string>;
     };
-    expect(NAME).toBe('diffroll');
+    expect(NAME).toBe('flickbook');
     expect(pkg.name).toBe(NAME);
     expect(Object.keys(pkg.bin)).toEqual([NAME]);
     expect(pkg.version).toBe(VERSION);
