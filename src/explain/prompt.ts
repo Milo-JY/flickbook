@@ -38,7 +38,7 @@ const EN = {
     'what the user asked for, taken from the user prompt and/or the step note',
     'what the diff actually changes',
     'what was requested but is missing, and what changed that was NOT requested; if nothing, say so',
-    '1-3 concrete places (file and function) the human should read closely, especially things the diff alone cannot confirm',
+    '1-3 concrete places the human should read closely, especially things the diff alone cannot confirm; start each bullet with the file path exactly as in the diff, then the function',
     '1-3 software design/engineering concepts this step touches or should have applied (for example idempotency, input validation, atomicity, race condition, backward compatibility, boundary values), each as "- <name> — <one plain sentence: what it means here>"; use only real, standard concept names; if none apply, say so',
   ],
   concept: 'the concept name in English',

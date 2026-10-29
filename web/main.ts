@@ -146,7 +146,7 @@ const PART_ICON: Record<PartKey | 'calm', string> = {
   check: 'M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z', // eye
   concepts: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z', // light bulb
 };
-const DEFAULT_OPEN: Record<PartKey, boolean> = { requested: false, done: false, gap: true, check: true, concepts: false };
+const DEFAULT_OPEN: Record<PartKey, boolean> = { requested: false, done: false, gap: true, check: true, concepts: true };
 
 function icon(d: string): SVGSVGElement {
   const ns = 'http://www.w3.org/2000/svg';
