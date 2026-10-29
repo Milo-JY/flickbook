@@ -1,11 +1,11 @@
 {
-  "name": "reviewroll",
+  "name": "diffroll",
   "version": "0.1.0",
   "description": "Rewind and read what an AI coding agent (or you) changed, step by step, in a local web UI. Nothing leaves your machine.",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "reviewroll": "dist/cli.js"
+    "diffroll": "dist/cli.js"
   },
   "files": [
     "dist",
