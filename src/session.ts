@@ -1,4 +1,4 @@
-import { readFile, writeFile, rm, link, mkdir, open } from 'node:fs/promises';
+import { readFile, writeFile, rm, link, mkdir, open, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { git } from './git.js';
@@ -248,10 +248,33 @@ async function appendSnapshot(
 }
 
 /**
+ * Removes a lock whose owner is gone. Takeovers are serialized by a short-lived guard file and the owner is
+ * re-read under it, so a waiter that saw the dead owner earlier cannot delete a lock someone else just created.
+ */
+async function takeOverStale(lock: string): Promise<void> {
+  const guard = `${lock}.takeover`;
+  try {
+    await (await open(guard, 'wx')).close();
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
+    // held for microseconds; one that is old belongs to a process that died mid-takeover
+    const st = await stat(guard).catch(() => null);
+    if (st && Date.now() - st.mtimeMs > 10_000) await rm(guard, { force: true });
+    return;
+  }
+  try {
+    const owner = Number.parseInt(await readFile(lock, 'utf8').catch(() => ''), 10);
+    if (owner && !pidAlive(owner)) await rm(lock, { force: true });
+  } finally {
+    await rm(guard, { force: true });
+  }
+}
+
+/**
  * Serializes step/end per repo so a step cannot land after an end and two ends cannot both write.
  * The lock file holds its owner's pid; a lock whose owner is gone is taken over.
  */
-async function withLock<T>(repo: Repo, fn: () => Promise<T>): Promise<T> {
+export async function withLock<T>(repo: Repo, fn: () => Promise<T>): Promise<T> {
   await mkdir(repo.rr, { recursive: true });
   const lock = join(repo.rr, 'lock');
   const deadline = Date.now() + LIMITS.lockWaitMs;
@@ -266,7 +289,7 @@ async function withLock<T>(repo: Repo, fn: () => Promise<T>): Promise<T> {
     }
     const owner = Number.parseInt(await readFile(lock, 'utf8').catch(() => ''), 10);
     if (owner && !pidAlive(owner)) {
-      await rm(lock, { force: true });
+      await takeOverStale(lock);
       continue;
     }
     if (Date.now() > deadline) throw new RrError(`another ${NAME} step/end is still running (lock ${lock})`);

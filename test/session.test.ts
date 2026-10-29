@@ -1,14 +1,31 @@
 import { existsSync, mkdirSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { openRepo } from '../src/repo.js';
-import { activeId, endSession, listSessions, readSteps, startSession, stepSession, validateSessionId } from '../src/session.js';
+import { activeId, endSession, listSessions, readSteps, startSession, stepSession, validateSessionId, withLock } from '../src/session.js';
 import { CLI, git, makeRepo, runCli } from './helpers.js';
 import { execFileSync, spawn } from 'node:child_process';
 import { NAME } from '../src/name.js';
 import { commitTree, createRef, snapshotTree } from '../src/snapshot.js';
 import { formatMessage } from '../src/meta.js';
 import { REF_PREFIX, ZERO_OID } from '../src/config.js';
+
+// test hook: make the Nth read of a lock file return its (stale) value only after a delay
+const lockRead = vi.hoisted(() => ({ delayNth: 0, seen: 0 }));
+vi.mock('node:fs/promises', async (orig) => {
+  const real = await orig<typeof import('node:fs/promises')>();
+  return {
+    ...real,
+    readFile: (async (...args: Parameters<typeof real.readFile>) => {
+      const v = await real.readFile(...args);
+      if (lockRead.delayNth && String(args[0]).endsWith('/lock')) {
+        lockRead.seen++;
+        if (lockRead.seen === lockRead.delayNth) await new Promise((r) => setTimeout(r, 100));
+      }
+      return v;
+    }) as typeof real.readFile,
+  };
+});
 
 describe('start/step/end/list (unit 3)', () => {
   it('start -> step x2 -> end creates 0000..0003 and clears the pointer', async () => {
@@ -198,5 +215,33 @@ describe('end vs step/end races', () => {
       const kinds = (await readSteps(repo, id)).map((s) => s.meta.kind);
       expect(kinds.filter((k) => k === 'end')).toHaveLength(1);
     }
+  });
+});
+
+describe('repo lock takeover', () => {
+  it('two waiters that both saw a dead owner never hold the lock at the same time', async () => {
+    const dir = makeRepo();
+    const repo = await openRepo(dir);
+    mkdirSync(repo.rr, { recursive: true });
+    const dead = spawn('node', ['-e', '0'], { stdio: 'ignore' });
+    await new Promise((r) => dead.on('close', r));
+    writeFileSync(join(repo.rr, 'lock'), `${dead.pid}\n`);
+    lockRead.delayNth = 2; // the second waiter reads the dead pid, then stalls until the first has taken over
+    let active = 0;
+    let maxActive = 0;
+    const hold = async () => {
+      active++;
+      maxActive = Math.max(maxActive, active);
+      await new Promise((r) => setTimeout(r, 300));
+      active--;
+    };
+    try {
+      await Promise.all([withLock(repo, hold), withLock(repo, hold)]);
+    } finally {
+      lockRead.delayNth = 0;
+      lockRead.seen = 0;
+    }
+    expect(maxActive).toBe(1);
+    expect(existsSync(join(repo.rr, 'lock'))).toBe(false);
   });
 });
