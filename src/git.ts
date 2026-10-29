@@ -3,6 +3,8 @@ import { RrError } from './errors.js';
 
 export interface GitResult {
   stdout: string;
+  /** Raw stdout, for byte-length-delimited output such as `cat-file --batch`. */
+  stdoutBuf: Buffer;
   stderr: string;
   code: number;
 }
@@ -31,8 +33,10 @@ export function git(args: string[], opts: GitOptions): Promise<GitResult> {
       else reject(e);
     });
     child.on('close', (code) => {
+      const buf = Buffer.concat(out);
       const res = {
-        stdout: Buffer.concat(out).toString('utf8'),
+        stdout: buf.toString('utf8'),
+        stdoutBuf: buf,
         stderr: Buffer.concat(err).toString('utf8'),
         code: code ?? 1,
       };

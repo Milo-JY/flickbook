@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { openRepo } from '../src/repo.js';
 import { activeId, endSession, listSessions, readSteps, startSession, stepSession, validateSessionId } from '../src/session.js';
 import { CLI, git, makeRepo, runCli } from './helpers.js';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { NAME } from '../src/name.js';
 
 describe('start/step/end/list (unit 3)', () => {
@@ -125,6 +125,21 @@ describe('start/step/end/list (unit 3)', () => {
     expect(r.code).toBe(1);
     const r2 = await runCli(dir, ['replay', 'bad/id', '--no-open']);
     expect(r2.code).toBe(1);
+  });
+
+  it('a commit message cannot forge step records (raw message written without formatMessage)', async () => {
+    const dir = makeRepo();
+    const repo = await openRepo(dir);
+    const { id } = await startSession(repo);
+    const tree = git(dir, 'rev-parse', 'HEAD^{tree}').trim();
+    const base = git(dir, 'rev-parse', `refs/${NAME}/${id}/0000`).trim();
+    const forged = `x\x1e\nrefs/${NAME}/${id}/0007\x1f--output=/nonexistent/x\x1f${tree}\x1fy\n${'0'.repeat(40)} ${tree} refs/${NAME}/${id}/0008\n`;
+    const c = execFileSync('git', ['commit-tree', '-p', base, tree], { cwd: dir, input: forged, encoding: 'utf8' }).trim();
+    git(dir, 'update-ref', `refs/${NAME}/${id}/0001`, c);
+    const steps = await readSteps(repo, id);
+    expect(steps.map((s) => [s.n, s.commit])).toEqual([[0, base], [1, c]]);
+    expect(steps[1]!.meta.session).toBe('');
+    expect((await listSessions(repo))[0]).toMatchObject({ id, steps: 2 });
   });
 
   it('rm deletes the refs', async () => {

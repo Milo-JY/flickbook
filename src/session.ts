@@ -55,21 +55,51 @@ async function removePointer(repo: Repo): Promise<void> {
   await rm(pointerPath(repo), { force: true });
 }
 
-const FMT = ['%(refname)', '%(objectname)', '%(tree)', '%(contents)'].join('%1f') + '%1e';
+const OID_RE = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 
+/**
+ * Refs are listed with fields that cannot contain spaces or newlines (no message bodies), and the
+ * messages are then read with `cat-file --batch`, whose output is length-delimited. Text inside a
+ * commit message therefore cannot forge a ref, an oid or a tree.
+ */
 async function readRefs(repo: Repo, pattern: string): Promise<Step[]> {
-  const r = await git(['for-each-ref', '--sort=refname', `--format=${FMT}`, pattern], { cwd: repo.top });
-  const steps: Step[] = [];
-  for (const rec of r.stdout.split('\x1e')) {
-    const t = rec.replace(/^\n/, '');
-    if (!t) continue;
-    const [ref, commit, tree, contents] = t.split('\x1f');
-    if (!ref || !commit || !tree) continue;
-    const n = Number.parseInt(ref.slice(ref.lastIndexOf('/') + 1), 10);
-    if (Number.isNaN(n)) continue;
-    steps.push({ n, ref, commit, tree, meta: parseMessage(contents ?? '') });
+  const r = await git(['for-each-ref', '--sort=refname', '--format=%(objectname) %(tree) %(refname)', pattern], {
+    cwd: repo.top,
+  });
+  const found: { n: number; ref: string; commit: string; tree: string }[] = [];
+  for (const line of r.stdout.split('\n')) {
+    const [commit, tree, ref, extra] = line.split(' ');
+    if (!commit || !tree || !ref || extra !== undefined) continue;
+    if (!OID_RE.test(commit) || !OID_RE.test(tree) || !ref.startsWith(pattern)) continue;
+    const num = ref.slice(ref.lastIndexOf('/') + 1);
+    if (!/^\d{4}$/.test(num)) continue;
+    found.push({ n: Number.parseInt(num, 10), ref, commit, tree });
   }
-  return steps;
+  if (!found.length) return [];
+  const messages = await readMessages(repo, found.map((f) => f.commit));
+  return found.map((f) => ({ ...f, meta: parseMessage(messages.get(f.commit) ?? '') }));
+}
+
+/** Commit messages by oid, parsed from `git cat-file --batch` (header line + exactly <size> bytes). */
+async function readMessages(repo: Repo, oids: string[]): Promise<Map<string, string>> {
+  const r = await git(['cat-file', '--batch'], { cwd: repo.top, input: [...new Set(oids)].join('\n') + '\n' });
+  const buf = r.stdoutBuf;
+  const out = new Map<string, string>();
+  let pos = 0;
+  while (pos < buf.length) {
+    const nl = buf.indexOf(0x0a, pos);
+    if (nl < 0) break;
+    const [oid, type, size] = buf.subarray(pos, nl).toString('utf8').split(' ');
+    pos = nl + 1;
+    if (type === 'missing' || !size) continue;
+    const len = Number.parseInt(size, 10);
+    const body = buf.subarray(pos, pos + len).toString('utf8');
+    pos += len + 1; // trailing LF after the object
+    if (type !== 'commit' || !oid) continue;
+    const sep = body.indexOf('\n\n');
+    out.set(oid, sep < 0 ? '' : body.slice(sep + 2));
+  }
+  return out;
 }
 
 export async function readSteps(repo: Repo, id: string): Promise<Step[]> {
