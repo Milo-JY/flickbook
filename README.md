@@ -17,7 +17,7 @@ flickbook lets you flip through what your AI changed, one page at a time: what y
 
 - **Juniors** get the "why" and the concept name right next to the change, so they can look it up on their own.
 - **Seniors** who hand more and more work to AI can meet concepts they haven't used in a while, follow the code by hand again, and reuse the explanation order (asked, did, differs, check here) when explaining code to others.
-- **Teams** can put the replay on a shared screen and walk colleagues through an AI-assisted change step by step. The replay runs only on your machine; flickbook does not share anything for you.
+- **Teams** can put the replay on a shared screen and walk colleagues through an AI-assisted change step by step. The replay runs only on your machine; flickbook does not share anything for you (explanations, if you turn them on, go through your provider).
 
 You ask an agent for a change, it touches seven files, and you skim a wall of diff afterwards. flickbook snapshots your working tree at each step so you can read the change in the order it happened, with the prompt that caused it next to the diff.
 
