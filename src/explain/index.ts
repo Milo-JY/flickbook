@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { DEFAULTS, TEMPLATE_VERSION } from '../config.js';
 import { diffFiles } from '../diff.js';
@@ -56,7 +56,11 @@ async function prepare(repo: Repo, sessionId: string, n: number, providerOverrid
     truncated: lim.truncated,
     omitted: lim.omitted,
   });
-  const key = createHash('sha256').update([provider, TEMPLATE_VERSION, lang, lim.diff].join('\0')).digest('hex');
+  const model = (await gitConfig(repo, `${NAME}.model`)) ?? '';
+  const inputs = createHash('sha256').update([context, step.meta.note].join('\0')).digest('hex');
+  const key = createHash('sha256')
+    .update([provider, model, TEMPLATE_VERSION, lang, inputs, lim.diff].join('\0'))
+    .digest('hex');
   return { provider, lang, key, prompt, files: names, diff: lim.diff, note: step.meta.note, context };
 }
 
@@ -122,8 +126,12 @@ export async function explainStep(
       if (!text) throw new RrError('the provider returned an empty explanation');
       await mkdir(join(repo.rr, 'explain'), { recursive: true });
       const tmp = `${file}.${process.pid}.${randomBytes(3).toString('hex')}.tmp`;
-      await writeFile(tmp, text + '\n');
-      await rename(tmp, file);
+      try {
+        await writeFile(tmp, text + '\n');
+        await rename(tmp, file);
+      } finally {
+        await rm(tmp, { force: true });
+      }
       return { text: text + '\n', cached: false };
     })().finally(() => inflight.delete(flightKey));
     inflight.set(flightKey, flight);
