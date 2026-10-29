@@ -207,6 +207,33 @@ describe('explain providers (unit 7)', () => {
     expect(existsSync(stub.count)).toBe(false);
   });
 
+  it('claude gets a minimal environment: no unrelated secrets, but PATH/HOME and ANTHROPIC_*/CLAUDE_*', async () => {
+    const dir = makeRepo();
+    const stub = makeStub('claude');
+    process.env['PATH'] = `${stub.binDir}:${oldPath}`;
+    const saved = { ...process.env };
+    Object.assign(process.env, {
+      AWS_SECRET_ACCESS_KEY: 'aws-secret-value',
+      GITHUB_TOKEN: 'gh-secret-value',
+      ANTHROPIC_API_KEY: 'anthropic-kept',
+      CLAUDE_CONFIG_DIR: '/kept/claude',
+    });
+    try {
+      git(dir, 'config', `${NAME}.provider`, 'claude');
+      const { repo, id } = await session(dir);
+      await explainStep(repo, id, 1);
+    } finally {
+      for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
+      Object.assign(process.env, saved);
+    }
+    const env = readFileSync(stub.env, 'utf8');
+    expect(env).not.toMatch(/AWS_SECRET_ACCESS_KEY|aws-secret-value|GITHUB_TOKEN|gh-secret-value/);
+    expect(env).toMatch(/^PATH=/m);
+    expect(env).toMatch(/^HOME=/m);
+    expect(env).toMatch(/^ANTHROPIC_API_KEY=anthropic-kept$/m);
+    expect(env).toMatch(/^CLAUDE_CONFIG_DIR=\/kept\/claude$/m);
+  });
+
   it('cache key covers the model setting and the step context/note, not only the diff', async () => {
     const dir = makeRepo();
     const stub = makeStub('claude');

@@ -36,18 +36,19 @@ export function runCli(cwd: string, args: string[], opts: { input?: string; env?
   });
 }
 
-/** Fake provider CLI: logs argv + stdin, counts spawns, prints a canned explanation. */
-export function makeStub(name: 'claude'): { binDir: string; log: string; count: string; stdin: string; cwd: string } {
+/** Fake provider CLI: logs argv + stdin + env, counts spawns, prints a canned explanation. */
+export function makeStub(name: 'claude'): { binDir: string; log: string; count: string; stdin: string; cwd: string; env: string } {
   const binDir = realpathSync(mkdtempSync(join(tmpdir(), 'rr-stub-')));
   const log = join(binDir, 'argv.log');
   const count = join(binDir, 'count.log');
   const stdin = join(binDir, 'stdin.txt');
   const cwd = join(binDir, 'cwd.txt');
-  const where = `{ pwd; ls -A; } > '${cwd}'\n`;
+  const env = join(binDir, 'env.txt');
+  const where = `{ pwd; ls -A; } > '${cwd}'\nenv > '${env}'\n`;
   const script = `#!/bin/sh\n${where}echo x >> '${count}'\nprintf '%s\\n' "$@" > '${log}'\ncat > '${stdin}'\necho "- stub explanation"\n`;
   mkdirSync(binDir, { recursive: true });
   const p = join(binDir, name);
   writeFileSync(p, script);
   chmodSync(p, 0o755);
-  return { binDir, log, count, stdin, cwd };
+  return { binDir, log, count, stdin, cwd, env };
 }

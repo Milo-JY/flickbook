@@ -19,6 +19,24 @@ export async function findOnPath(cmd: string): Promise<string | null> {
   return null;
 }
 
+const ENV_KEEP = new Set([
+  'PATH', 'HOME', 'USER', 'LOGNAME', 'LANG', 'TERM', 'TMPDIR',
+  // network: proxies and CA bundles, so a login that works in your shell works here
+  'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy', 'no_proxy', 'all_proxy',
+  'SSL_CERT_FILE', 'SSL_CERT_DIR', 'NODE_EXTRA_CA_CERTS',
+  'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_STATE_HOME',
+]);
+
+/** Only what the provider CLI needs to run and sign in; everything else (cloud keys, tokens, ...) is not passed on. */
+export function minimalEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const out: NodeJS.ProcessEnv = {};
+  for (const [k, v] of Object.entries(env)) {
+    if (v === undefined) continue;
+    if (ENV_KEEP.has(k) || k.startsWith('LC_') || k.startsWith('ANTHROPIC_') || k.startsWith('CLAUDE_')) out[k] = v;
+  }
+  return out;
+}
+
 export function timeoutMs(): number {
   const v = Number(process.env[`${NAME.toUpperCase()}_EXPLAIN_TIMEOUT_MS`]);
   return Number.isFinite(v) && v > 0 ? v : LIMITS.explainTimeoutMs;
@@ -33,7 +51,7 @@ export async function runCli(
   const bin = await findOnPath(cmd);
   if (!bin) throw new RrError(`"${cmd}" was not found on PATH. Install it, or change "git config ${NAME}.provider".`);
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, args, { cwd: opts.cwd, env: process.env, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(bin, args, { cwd: opts.cwd, env: minimalEnv(process.env), stdio: ['pipe', 'pipe', 'pipe'] });
     const out: Buffer[] = [];
     let outBytes = 0;
     const err: Buffer[] = [];
