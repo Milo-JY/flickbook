@@ -1,34 +1,33 @@
 # flickbook
 
-**Rewind and read what your AI coding agent changed, one step at a time.**
-Mark a baseline, let any agent (or yourself) edit, and replay every step as a diff plus an explanation in a local web UI. Nothing leaves your machine.
+**Replay what your AI coding agent changed, step by step: what you asked for, what it actually did, and the concepts involved.**
+
+Mark a baseline, let an agent (or yourself) edit, record each step with `flickbook step` (or let the Claude Code hook do it), then flip through every step's diff and explanation in a local web UI. Nothing leaves your machine unless you turn on explanations.
 
 [한국어](README.ko.md)
 
 ![flickbook demo](docs/demo.gif)
 
+```sh
+npx flickbook start                 # mark the baseline
+npx flickbook step -m "add login"   # after each change (or use the Claude Code hook)
+npx flickbook replay                # open the step-by-step view
+```
+
 ## Why
 
 When I started my first developer job, I had senior colleagues, but they were busy, and writing good code is a different skill from explaining it. I'd hear "this is wrong," but not why, and not that the problem had a name (idempotency, input validation, race conditions...). Without the name I couldn't even search for it.
 
-Now AI writes a lot of the code. It's faster, but more code gets accepted without anyone really reading it. In a small, preliminary [Anthropic study](https://www.anthropic.com/research/AI-assistance-coding-skills) (52 mostly junior developers learning a new library), the AI-assisted group averaged 50% on a follow-up quiz versus 67% for those who coded by hand. The people who scored well used AI to understand the code, asking for explanations and conceptual questions, not just to produce it. flickbook is built for that habit.
-
-flickbook lets you flip through what your AI changed, one page at a time: what you asked for, what it actually did, what differs (missed or out of scope), where to check by hand, and the names of the concepts involved.
-
-- **Juniors** get the "why" and the concept name right next to the change, so they can look it up on their own.
-- **Seniors** who hand more and more work to AI can meet concepts they haven't used in a while, follow the code by hand again, and reuse the explanation order (asked, did, differs, check here) when explaining code to others.
-- **Teams** can put the replay on a shared screen and walk colleagues through an AI-assisted change step by step. The replay runs only on your machine; flickbook does not share anything for you (explanations, if you turn them on, go through your provider).
-
-You ask an agent for a change, it touches seven files, and you skim a wall of diff afterwards. flickbook snapshots your working tree at each step so you can read the change in the order it happened, with the prompt that caused it next to the diff.
+Now AI writes a lot of the code, and more of it gets accepted without anyone really reading it. In a small, preliminary [Anthropic study](https://www.anthropic.com/research/AI-assistance-coding-skills) (52 mostly junior developers learning a new library), the AI-assisted group averaged 50% on a follow-up quiz versus 67% for those who coded by hand. The people who scored well used AI to understand the code, asking for explanations and conceptual questions, not just to produce it. flickbook is built for that habit: for juniors who want the "why" and the name next to each change, and for anyone who has to read AI changes they didn't write.
 
 How it differs from nearby tools (as of 2026-10-29, from their public READMEs/docs):
 
 | Tool | What it is | How flickbook differs |
 |---|---|---|
 | [Hunk](https://github.com/modem-dev/hunk) | Diff viewer for the current state | No timeline and no baseline you pick; flickbook replays a sequence of steps from a baseline you choose |
-| [Entire CLI](https://github.com/entireio/cli) | Commit-linked checkpoints stored in refs that are pushed to the remote, for memory and sharing | flickbook keeps everything in local refs and never pushes; the point is reading, not sharing |
+| [Entire CLI](https://github.com/entireio/cli) | Commit-linked checkpoints stored in their own refs and pushed to the remote by default, for memory and sharing | flickbook keeps everything in local refs and never pushes; the point is reading, not sharing |
 | Claude Code checkpoints / rewind | Per-prompt undo, Claude only, no explanations | flickbook is read-only for your files, works with any agent or a human, and adds explanations |
-| [learning-opportunities](https://github.com/DrCatHicks/learning-opportunities) | A skill that quizzes you after the work | flickbook shows the diff itself, step by step |
+| [learning-opportunities](https://github.com/DrCatHicks/learning-opportunities) | A skill that quizzes you after the work | flickbook shows the diff itself, step by step; the two work well together |
 
 ## Install
 
