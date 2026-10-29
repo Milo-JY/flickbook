@@ -42,7 +42,7 @@ const EN = {
     '1-3 software design/engineering concepts this step touches or should have applied (for example idempotency, input validation, atomicity, race condition, backward compatibility, boundary values), each as "- <name> — <one plain sentence: what it means here>"; use only real, standard concept names; if none apply, say so',
   ],
   concept: 'the concept name in English',
-  hint: 'tell the user to use the Claude Code hook or `flickbook step -m "..."`',
+  hint: `tell the user to use the Claude Code hook or \`${NAME} step -m "..."\``,
 };
 const KO = {
   labels: ['요청한 것', '실제로 한 것', '차이', '직접 확인할 곳', '쓰인 개념'],
