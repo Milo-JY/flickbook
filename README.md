@@ -20,6 +20,8 @@ When I started my first developer job, I had senior colleagues, but they were bu
 
 Now AI writes a lot of the code, and more of it gets accepted without anyone really reading it. In a small, preliminary [Anthropic study](https://www.anthropic.com/research/AI-assistance-coding-skills) (52 mostly junior developers learning a new library), the AI-assisted group averaged 50% on a follow-up quiz versus 67% for those who coded by hand. The people who scored well used AI to understand the code, asking for explanations and conceptual questions, not just to produce it. flickbook is built for that habit: for juniors who want the "why" and the name next to each change, and for anyone who has to read AI changes they didn't write.
 
+The longer story is in [Why I built flickbook](docs/why.md).
+
 How it differs from nearby tools (as of 2026-10-29, from their public READMEs/docs):
 
 | Tool | What it is | How flickbook differs |
