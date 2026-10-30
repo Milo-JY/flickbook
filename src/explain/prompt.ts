@@ -16,6 +16,7 @@ export interface ExplainInput {
 /** Cut the diff at file boundaries to fit the byte limit. */
 export function limitDiff(files: FileDiff[]): { diff: string; truncated: boolean; omitted: string[] } {
   let used = 0;
+  let cut = false;
   const kept: string[] = [];
   const omitted: string[] = [];
   for (const f of files) {
@@ -27,9 +28,10 @@ export function limitDiff(files: FileDiff[]): { diff: string; truncated: boolean
       // a single huge file: keep its head
       kept.push(truncateBytes(f.diff, LIMITS.explainDiffBytes) + '\n[... file diff truncated ...]\n');
       used = LIMITS.explainDiffBytes;
+      cut = true;
     } else omitted.push(f.path);
   }
-  return { diff: kept.join(''), truncated: omitted.length > 0 || used >= LIMITS.explainDiffBytes, omitted };
+  return { diff: kept.join(''), truncated: cut || omitted.length > 0, omitted };
 }
 
 const EN = {

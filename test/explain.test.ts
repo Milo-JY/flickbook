@@ -2,12 +2,13 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync, mkdirSync
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { explainStep, readExplanation } from '../src/explain/index.js';
-import { buildPrompt } from '../src/explain/prompt.js';
+import { buildPrompt, limitDiff } from '../src/explain/prompt.js';
 import { openRepo } from '../src/repo.js';
 import { endSession, startSession, stepSession } from '../src/session.js';
 import { git, makeRepo, makeStub, runCli } from './helpers.js';
 import { NAME } from '../src/name.js';
-import { TEMPLATE_VERSION } from '../src/config.js';
+import type { FileDiff } from '../src/diff.js';
+import { LIMITS, TEMPLATE_VERSION } from '../src/config.js';
 
 let oldPath: string | undefined;
 beforeEach(() => { oldPath = process.env['PATH']; });
@@ -314,6 +315,14 @@ describe('explain providers (unit 7)', () => {
 });
 
 describe('explanation coverage notice (diff over the size limit)', () => {
+  it('limitDiff marks nothing cut when the kept diff is exactly at the limit', () => {
+    const fd = (path: string, bytes: number): FileDiff => ({ status: 'M', path, diff: 'x'.repeat(bytes) });
+    const half = LIMITS.explainDiffBytes / 2;
+    expect(limitDiff([fd('a', half), fd('b', half)])).toMatchObject({ truncated: false, omitted: [] });
+    expect(limitDiff([fd('a', LIMITS.explainDiffBytes)])).toMatchObject({ truncated: false, omitted: [] });
+    expect(limitDiff([fd('a', half), fd('b', half), fd('c', 1)])).toMatchObject({ truncated: true, omitted: ['c'] });
+    expect(limitDiff([fd('a', LIMITS.explainDiffBytes + 1)]).truncated).toBe(true);
+  });
   it('reports omitted files and a cut diff via explainStep, readExplanation and the CLI; a whole diff has no notice', async () => {
     const dir = makeRepo();
     const stub = makeStub('claude');
