@@ -40,8 +40,8 @@ export function localIso(d = new Date()): string {
   );
 }
 
-/** C0 control characters except \t and \n (NUL included): never let user/agent text carry them into git. */
-const CONTROL = /[\x00-\x08\x0b-\x1f]/g;
+/** C0 control characters except \t and \n (NUL included), DEL and C1: never let user/agent text carry them into git. */
+const CONTROL = /[\x00-\x08\x0b-\x1f\x7f-\x9f]/g;
 
 export function stripControl(s: string): string {
   return s.replace(CONTROL, '');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatMessage, parseMessage, truncateBytes } from '../src/meta.js';
+import { formatMessage, parseMessage, stripControl, truncateBytes } from '../src/meta.js';
 import { NAME } from '../src/name.js';
 
 describe('commit-message metadata', () => {
@@ -29,6 +29,12 @@ describe('commit-message metadata', () => {
     expect(m.context).toBe('abcde\tf\ng');
     expect(m.agentSummary).toBe('abcde\tf\ng');
     expect(m.note).toBe('abcde f g');
+  });
+
+  it('strips DEL and C1 control characters too (tab/newline and text around them kept)', () => {
+    expect(stripControl('a\x7fb\x80c\x9bd\x9fe\tf\ng\u00a0h')).toBe('abcde\tf\ng\u00a0h');
+    const m = parseMessage(formatMessage(1, { ...base, context: 'x\x1b[31my\x9b31mz\x7f' }));
+    expect(m.context).toBe('x[31my31mz');
   });
 
   it('note is one line; context is capped at 4 KB on a char boundary', () => {
