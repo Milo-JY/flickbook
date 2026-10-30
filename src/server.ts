@@ -1,3 +1,4 @@
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
@@ -57,6 +58,8 @@ export interface Running {
   server: Server;
   port: number;
   url: string;
+  /** Per-run secret; every /api/ request must send it as X-Flickbook-Token. */
+  token: string;
   close(): Promise<void>;
 }
 
@@ -65,6 +68,13 @@ export async function startServer(opts: ServeOptions): Promise<Running> {
   let port = 0;
   const allowedHosts = () => new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
   const allowedOrigins = () => new Set([`http://127.0.0.1:${port}`, `http://localhost:${port}`]);
+  // keeps other local users (and anything that cannot read the URL we print) away from the data
+  const token = randomBytes(32).toString('hex');
+  const tokenBuf = Buffer.from(token, 'utf8');
+  const tokenOk = (h: string | string[] | undefined): boolean => {
+    const got = Buffer.from(typeof h === 'string' ? h : '', 'utf8');
+    return got.length === tokenBuf.length && timingSafeEqual(got, tokenBuf);
+  };
 
   async function api(req: IncomingMessage, url: URL): Promise<unknown> {
     const parts = url.pathname.split('/').filter(Boolean).slice(1); // drop "api"
@@ -166,7 +176,10 @@ export async function startServer(opts: ServeOptions): Promise<Running> {
           if (!allowedOrigins().has(req.headers.origin ?? '')) throw new HttpError(403, 'bad origin');
         }
         const url = new URL(req.url ?? '/', `http://127.0.0.1:${port}`);
-        if (url.pathname.startsWith('/api/')) sendJson(res, 200, await api(req, url));
+        if (url.pathname.startsWith('/api/')) {
+          if (!tokenOk(req.headers['x-flickbook-token'])) throw new HttpError(403, `bad token: open the URL that "${NAME} replay" printed`);
+          sendJson(res, 200, await api(req, url));
+        }
         else if (method === 'POST') throw new HttpError(404, 'not found');
         else await serveStatic(url, res);
       } catch (e) {
@@ -189,6 +202,7 @@ export async function startServer(opts: ServeOptions): Promise<Running> {
     server,
     port,
     url: `http://127.0.0.1:${port}`,
+    token,
     close: () =>
       new Promise<void>((resolve) => {
         server.closeAllConnections();

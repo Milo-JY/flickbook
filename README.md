@@ -101,7 +101,7 @@ Each finished turn becomes one step, with your prompt stored as its context. The
 Nothing leaves your machine until you set a provider.
 
 - Snapshots, notes and prompt context live inside your repository's `.git` directory.
-- The web server binds to `127.0.0.1` only, loads no remote assets, and rejects requests from other origins.
+- The web server binds to `127.0.0.1` only, loads no remote assets, and rejects requests from other origins. Each `flickbook replay` run makes a new random token and puts it in the fragment of the URL it opens (`#t=...`, never sent in a request line or Referer); the data API answers only requests that carry it, so other users on the same machine are kept out.
 - If you set a provider, the step's diff (up to 60 KB) and the prompt context are sent to the provider behind that CLI. Not before.
 - Snapshots include untracked files that are not ignored, so a large file or a secret such as an unignored `.env` is stored too and, if a provider is set, its diff is sent. List such files in `.gitignore` or `.git/info/exclude`.
 - The `claude` process only receives the minimal environment listed above, not your full shell environment. Cloud credentials are passed only for the cloud Claude Code is set to use: `AWS_*` when `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_MANTLE` or `CLAUDE_CODE_USE_ANTHROPIC_AWS` is set, `GOOGLE_*`/`CLOUD_ML_*`/`GCLOUD_*` when `CLAUDE_CODE_USE_VERTEX` is set.

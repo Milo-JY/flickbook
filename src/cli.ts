@@ -136,7 +136,8 @@ program
     if (port !== undefined && (!Number.isInteger(port) || port < 0 || port > 65535)) throw new RrError('invalid --port');
     const webRoot = resolve(join(dirname(fileURLToPath(import.meta.url)), 'web'));
     const run = await startServer({ repo, webRoot, port });
-    const url = id ? `${run.url}/#/${id}` : run.url;
+    // the token rides in the fragment (never sent to the server or in a Referer); the UI moves it out of the URL
+    const url = `${run.url}/#t=${run.token}${id ? `/${id}` : ''}`;
     out(`${NAME} is serving ${url}`);
     out('Press Ctrl+C to stop.');
     if (o.open) openBrowser(url);

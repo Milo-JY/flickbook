@@ -43,8 +43,22 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return e;
 }
 
+// "flickbook replay" opens /#t=<token>[/<session>[/<step>]]. The token is in the fragment, so it never reaches
+// the server's request line or a Referer. Take it once, keep it for this tab only, and leave just the route in the URL.
+const TOKEN_KEY = 'flickbook.token';
+function takeToken(): string {
+  const m = /^#t=([0-9a-f]{64})(\/.*)?$/.exec(location.hash);
+  if (m) {
+    try { sessionStorage.setItem(TOKEN_KEY, m[1]!); } catch { /* storage blocked: kept in memory only */ }
+    history.replaceState(null, '', m[2] ? `#${m[2]}` : location.pathname + location.search);
+    return m[1]!;
+  }
+  try { return sessionStorage.getItem(TOKEN_KEY) ?? ''; } catch { return ''; }
+}
+const token = takeToken();
+
 async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(url, init);
+  const r = await fetch(url, { ...init, headers: { 'X-Flickbook-Token': token } });
   const body = (await r.json()) as T & { error?: string };
   if (!r.ok) throw new Error(body.error ?? `HTTP ${r.status}`);
   return body;

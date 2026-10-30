@@ -15,9 +15,16 @@ let dir: string;
 let run: Running;
 let sid: string;
 
-function call(method: string, path: string, headers: Record<string, string> = {}): Promise<{ status: number; body: string; headers: Record<string, unknown> }> {
+function call(
+  method: string,
+  path: string,
+  headers: Record<string, string> = {},
+  token: string | null = run.token,
+  port = run.port,
+): Promise<{ status: number; body: string; headers: Record<string, unknown> }> {
   return new Promise((res, rej) => {
-    const req = request({ host: '127.0.0.1', port: run.port, method, path, headers }, (r) => {
+    const all = token === null ? headers : { 'X-Flickbook-Token': token, ...headers };
+    const req = request({ host: '127.0.0.1', port, method, path, headers: all }, (r) => {
       let b = '';
       r.on('data', (d: Buffer) => (b += d));
       r.on('end', () => res({ status: r.statusCode ?? 0, body: b, headers: r.headers }));
@@ -69,6 +76,20 @@ describe('local server (unit 5)', () => {
     expect(none.status).toBe(403);
   });
 
+  it('requires the per-run token on every /api/ request (GET and POST); static files stay public', async () => {
+    expect(run.token).toMatch(/^[0-9a-f]{64}$/);
+    for (const path of ['/api/config', '/api/sessions', `/api/sessions/${sid}/steps/1/diff`]) {
+      expect((await call('GET', path, {}, null)).status).toBe(403);
+      expect((await call('GET', path, {}, '0'.repeat(64))).status).toBe(403);
+      expect((await call('GET', path, {}, run.token.slice(0, 63))).status).toBe(403);
+      expect((await call('GET', path)).status).toBe(200);
+    }
+    const post = `/api/sessions/${sid}/steps/1/explain`;
+    expect((await call('POST', post, { Origin: run.url }, null)).status).toBe(403);
+    expect((await call('POST', post, { Origin: run.url }, 'f'.repeat(64))).status).toBe(403);
+    expect((await call('GET', '/', {}, null)).status).toBe(200);
+  });
+
   it('rejects a foreign Host header (DNS rebinding)', async () => {
     const r = await call('GET', '/api/sessions', { Host: 'evil.example' });
     expect(r.status).toBe(403);
@@ -110,17 +131,22 @@ describe('local server (unit 5)', () => {
     }
   });
 
-  it('replay --no-open prints the URL (CLI)', async () => {
+  it('replay --no-open prints the URL with the token in the fragment (CLI)', async () => {
     const { spawn } = await import('node:child_process');
     const { CLI } = await import('./helpers.js');
-    const c = spawn('node', [CLI, 'replay', '--no-open'], { cwd: dir });
+    const c = spawn('node', [CLI, 'replay', '--no-open', sid], { cwd: dir });
     const line = await new Promise<string>((res) => {
       c.stdout.on('data', (d: Buffer) => {
-        const m = /http:\/\/127\.0\.0\.1:\d+/.exec(String(d));
+        const m = /http:\/\/127\.0\.0\.1:\d+\S*/.exec(String(d));
         if (m) res(m[0]);
       });
     });
-    expect(line).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+    const m = /^http:\/\/127\.0\.0\.1:(\d+)\/#t=([0-9a-f]{64})\/(.+)$/.exec(line);
+    expect(m).toBeTruthy();
+    expect(m![3]).toBe(sid);
+    const p = Number(m![1]);
+    expect((await call('GET', '/api/sessions', {}, m![2]!, p)).status).toBe(200);
+    expect((await call('GET', '/api/sessions', {}, run.token, p)).status).toBe(403);
     const lsof = execFileSync('lsof', ['-nP', '-iTCP', '-sTCP:LISTEN', '-a', '-p', String(c.pid)], { encoding: 'utf8' });
     expect(lsof).toMatch(/127\.0\.0\.1:/);
     expect(lsof).not.toMatch(/\*:\d|0\.0\.0\.0/);
