@@ -1,6 +1,6 @@
 {
   "name": "flickbook",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Read what an AI coding agent (or you) changed, step by step, in a local web UI. Nothing leaves your machine unless you turn on explanations.",
   "license": "MIT",
   "type": "module",
