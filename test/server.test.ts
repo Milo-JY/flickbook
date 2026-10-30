@@ -1,8 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { html } from 'diff2html';
 import { NAME } from '../src/name.js';
@@ -158,6 +158,41 @@ describe('local server (unit 5)', () => {
     expect(lsof).not.toMatch(/\*:\d|0\.0\.0\.0/);
     c.kill('SIGINT');
     await new Promise((r) => c.on('close', r));
+  });
+
+  it('replay opens a private redirect file, never the token URL, and removes it on close (CLI)', async () => {
+    const { spawn } = await import('node:child_process');
+    const { CLI } = await import('./helpers.js');
+    // stub opener: records its argv instead of launching a browser
+    const bin = mkdtempSync(join(tmpdir(), 'rr-opener-'));
+    const log = join(bin, 'argv.log');
+    for (const name of ['open', 'xdg-open']) {
+      writeFileSync(join(bin, name), `#!/bin/sh\nprintf '%s\\n' "$@" > '${log}.tmp' && mv '${log}.tmp' '${log}'\n`);
+      chmodSync(join(bin, name), 0o755);
+    }
+    const tmp = mkdtempSync(join(tmpdir(), 'rr-tmp-'));
+    const env = { ...process.env, PATH: `${bin}:${process.env['PATH']}`, TMPDIR: tmp };
+    const c = spawn('node', [CLI, 'replay', sid], { cwd: dir, env });
+    const url = await new Promise<string>((res) => {
+      c.stdout.on('data', (d: Buffer) => {
+        const m = /http:\/\/127\.0\.0\.1:\d+\S*/.exec(String(d));
+        if (m) res(m[0]);
+      });
+    });
+    const token = /#t=([0-9a-f]{64})/.exec(url)![1]!;
+    for (let i = 0; i < 100 && !existsSync(log); i++) await new Promise((r) => setTimeout(r, 50));
+    const argv = readFileSync(log, 'utf8');
+    expect(argv).not.toContain(token);
+    const file = argv.trim();
+    expect(file.startsWith(realpathSync(tmp)) || file.startsWith(tmp)).toBe(true);
+    expect(file.endsWith('.html')).toBe(true);
+    expect(statSync(file).mode & 0o777).toBe(0o600);
+    expect(statSync(dirname(file)).mode & 0o777).toBe(0o700);
+    expect(readFileSync(file, 'utf8')).toContain(`<meta http-equiv="refresh" content="0;url=${url}">`);
+    c.kill('SIGINT');
+    await new Promise((r) => c.on('close', r));
+    expect(existsSync(file)).toBe(false);
+    expect(existsSync(dirname(file))).toBe(false);
   });
 });
 

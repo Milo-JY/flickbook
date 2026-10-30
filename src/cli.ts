@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
-import { readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
@@ -42,12 +43,29 @@ async function resolveSession(repo: Repo, id?: string): Promise<string> {
   return latest;
 }
 
-function openBrowser(url: string): void {
+const escapeHtml = (s: string): string =>
+  s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+/**
+ * Open the UI without putting the token on a command line (other local users can read argv via ps):
+ * the opener gets a redirect page that only the current user can read. Returns a function that deletes it.
+ */
+async function openBrowser(url: string): Promise<() => Promise<void>> {
+  const dir = await mkdtemp(join(tmpdir(), `${NAME}-`)); // mode 0700
+  const file = join(dir, 'open.html');
+  await writeFile(file, `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${escapeHtml(url)}">\n`, {
+    mode: 0o600,
+    flag: 'wx',
+  });
+  const remove = (): Promise<void> => rm(dir, { recursive: true, force: true });
   const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'cmd' : 'xdg-open';
-  const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
+  const args = process.platform === 'win32' ? ['/c', 'start', '', file] : [file];
   const c = spawn(cmd, args, { stdio: 'ignore', detached: true });
   c.on('error', () => out(`Could not open a browser automatically. Open ${url} yourself.`));
   c.unref();
+  // the browser has loaded the page long before this; the server's close removes it too
+  setTimeout(() => void remove(), 30_000).unref();
+  return remove;
 }
 
 async function readStdin(): Promise<string> {
@@ -140,12 +158,13 @@ program
     const url = `${run.url}/#t=${run.token}${id ? `/${id}` : ''}`;
     out(`${NAME} is serving ${url}`);
     out('Press Ctrl+C to stop.');
-    if (o.open) openBrowser(url);
+    const removeLauncher = o.open ? await openBrowser(url) : undefined;
     await new Promise<void>((res) => {
       process.once('SIGINT', () => res());
       process.once('SIGTERM', () => res());
     });
     await run.close();
+    await removeLauncher?.();
   });
 
 program
