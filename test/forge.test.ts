@@ -10,9 +10,9 @@ import { activeId, listSessions, readSteps } from '../src/session.js';
 import { git, makeRepo, runCli } from './helpers.js';
 import { NAME } from '../src/name.js';
 
-function get(port: number, path: string): Promise<{ status: number; body: string }> {
+function get(port: number, path: string, token: string): Promise<{ status: number; body: string }> {
   return new Promise((res, rej) => {
-    const req = request({ host: '127.0.0.1', port, method: 'GET', path }, (r) => {
+    const req = request({ host: '127.0.0.1', port, method: 'GET', path, headers: { 'X-Flickbook-Token': token } }, (r) => {
       let b = '';
       r.on('data', (d: Buffer) => (b += d));
       r.on('end', () => res({ status: r.statusCode ?? 0, body: b }));
@@ -50,9 +50,9 @@ describe('forged step records in commit messages (blocker 1 regression)', () => 
     const run = await startServer({ repo, webRoot: resolve('dist/web') });
     try {
       for (const p of [`/api/sessions/${id}`, `/api/sessions/${id}/steps/2/diff`, `/api/sessions/${id}/steps/3/diff?base=baseline`]) {
-        await get(run.port, p);
+        await get(run.port, p, run.token);
       }
-      const detail = JSON.parse((await get(run.port, `/api/sessions/${id}`)).body) as { steps: unknown[] };
+      const detail = JSON.parse((await get(run.port, `/api/sessions/${id}`, run.token)).body) as { steps: unknown[] };
       expect(detail.steps).toHaveLength(2);
     } finally {
       await run.close();
