@@ -7,7 +7,7 @@ import { createInterface } from 'node:readline/promises';
 import { Command } from 'commander';
 import { LIMITS } from './config.js';
 import { RrError } from './errors.js';
-import { explainStep, NoChangeError } from './explain/index.js';
+import { coverageNotice, explainStep, NoChangeError } from './explain/index.js';
 import { PROVIDER_HELP, resolveProviderName } from './explain/providers.js';
 import { CLAUDE_HOOK_SNIPPET, runHook } from './hook.js';
 import { truncateBytes } from './meta.js';
@@ -172,6 +172,8 @@ program
       try {
         const r = await explainStep(repo, sid, n, { provider: o.provider, force: o.force });
         out(`--- step ${pad(n)}${r.cached ? ' (cached)' : ''} ---`);
+        const notice = coverageNotice(r);
+        if (notice) out(notice);
         out(r.text.trimEnd());
       } catch (e) {
         if (!(e instanceof NoChangeError && o.all)) throw e;

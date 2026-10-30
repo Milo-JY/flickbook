@@ -114,6 +114,12 @@ describe('local server (unit 5)', () => {
     expect(z.files).toEqual([]);
   });
 
+  it('explanation state carries the coverage fields', async () => {
+    const r = await call('GET', `/api/sessions/${sid}/steps/1/explanation`);
+    expect(r.status).toBe(200);
+    expect(JSON.parse(r.body)).toMatchObject({ configured: false, text: null, truncated: false, omitted: [] });
+  });
+
   it('serves the web bundle with security headers; path traversal is refused', async () => {
     const r = await call('GET', '/');
     expect(r.status).toBe(200);

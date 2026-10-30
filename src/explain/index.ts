@@ -33,6 +33,23 @@ interface Prepared {
   diff: string;
   note: string;
   context: string;
+  truncated: boolean;
+  omitted: string[];
+}
+
+/** What part of the diff the explanation saw: cut short (truncated) and files left out entirely (omitted). */
+export interface Coverage {
+  truncated: boolean;
+  omitted: string[];
+}
+
+const FULL: Coverage = { truncated: false, omitted: [] };
+
+/** Fixed, non-model text for an explanation that did not see the whole diff (CLI; the web UI has its own en/ko text). */
+export function coverageNotice(c: Coverage): string | null {
+  if (c.omitted.length) return `Note: ${c.omitted.length} file(s) were not included in this explanation (diff over the size limit). Read them in the diff yourself.`;
+  if (c.truncated) return 'Note: this explanation saw only part of the diff (diff over the size limit). Read the rest yourself.';
+  return null;
 }
 
 async function prepare(repo: Repo, sessionId: string, n: number, providerOverride?: string): Promise<Prepared> {
@@ -62,14 +79,24 @@ async function prepare(repo: Repo, sessionId: string, n: number, providerOverrid
   const key = createHash('sha256')
     .update([provider, model, TEMPLATE_VERSION, lang, inputs, lim.diff].join('\0'))
     .digest('hex');
-  return { provider, lang, key, prompt, files: names, diff: lim.diff, note: step.meta.note, context };
+  return {
+    provider,
+    lang,
+    key,
+    prompt,
+    files: names,
+    diff: lim.diff,
+    note: step.meta.note,
+    context,
+    truncated: lim.truncated,
+    omitted: lim.omitted,
+  };
 }
 
 const cachePath = (repo: Repo, key: string) => join(repo.rr, 'explain', `${key}.txt`);
 
-export type ExplanationState =
-  | { provider: ProviderName; configured: false; text: null }
-  | { provider: ProviderName; configured: true; text: string | null };
+export type ExplanationState = Coverage &
+  ({ provider: ProviderName; configured: false; text: null } | { provider: ProviderName; configured: true; text: string | null });
 
 /** Cached explanation if any. Never spawns anything. */
 export async function readExplanation(
@@ -79,14 +106,15 @@ export async function readExplanation(
   providerOverride?: string,
 ): Promise<ExplanationState> {
   const provider = await resolveProviderName(repo, providerOverride);
-  if (provider === 'none') return { provider, configured: false, text: null };
-  if (n === 0) return { provider, configured: true, text: null };
+  if (provider === 'none') return { provider, configured: false, text: null, ...FULL };
+  if (n === 0) return { provider, configured: true, text: null, ...FULL };
   try {
     const p = await prepare(repo, sessionId, n, providerOverride);
-    return { provider, configured: true, text: await readFile(cachePath(repo, p.key), 'utf8') };
+    const text = await readFile(cachePath(repo, p.key), 'utf8');
+    return { provider, configured: true, text, truncated: p.truncated, omitted: p.omitted };
   } catch (e) {
     if (e instanceof NoChangeError || (e as NodeJS.ErrnoException).code === 'ENOENT') {
-      return { provider, configured: true, text: null };
+      return { provider, configured: true, text: null, ...FULL };
     }
     throw e;
   }
@@ -100,13 +128,14 @@ export async function explainStep(
   sessionId: string,
   n: number,
   opts: ExplainOptions = {},
-): Promise<{ text: string; cached: boolean; provider: ProviderName }> {
+): Promise<{ text: string; cached: boolean; provider: ProviderName } & Coverage> {
   const p = await prepare(repo, sessionId, n, opts.provider);
   const provider = await makeProvider(repo, p.provider); // throws help text for 'none' before any spawn
   const file = cachePath(repo, p.key);
+  const coverage: Coverage = { truncated: p.truncated, omitted: p.omitted };
   if (!opts.force) {
     try {
-      return { text: await readFile(file, 'utf8'), cached: true, provider: p.provider };
+      return { text: await readFile(file, 'utf8'), cached: true, provider: p.provider, ...coverage };
     } catch {
       /* miss */
     }
@@ -137,5 +166,5 @@ export async function explainStep(
     })().finally(() => inflight.delete(flightKey));
     inflight.set(flightKey, flight);
   }
-  return { ...(await flight), provider: p.provider };
+  return { ...(await flight), provider: p.provider, ...coverage };
 }

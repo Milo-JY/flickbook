@@ -68,9 +68,10 @@ export function splitConcept(text: string): { name: string; meaning: string } {
 
 // Gap is shown calm only when it is exactly "None." (en) or "없음." (ko): the prompt asks for that text
 // when nothing is missing and nothing unrequested changed, and any other wording is listed as usual.
+// Never calm when the explanation saw only part of the diff (partial): "None." then covers only what it saw.
 const GAP_NONE = /^(?:none|없음)\.?$/i;
-export function gapIsCalm(part: Part): boolean {
-  return part.lines.length === 1 && GAP_NONE.test(part.lines[0]!.text.trim());
+export function gapIsCalm(part: Part, partial = false): boolean {
+  return !partial && part.lines.length === 1 && GAP_NONE.test(part.lines[0]!.text.trim());
 }
 
 /** The changed file a "Check yourself" line starts with (longest match), followed by a space, punctuation or the end. */

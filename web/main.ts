@@ -10,7 +10,7 @@ interface StepInfo {
   context: string; agentSummary: string; filesChanged: number;
 }
 interface FileDiff { status: string; path: string; oldPath?: string; diff: string }
-interface Explanation { provider: string; configured: boolean; text: string | null }
+interface Explanation { provider: string; configured: boolean; text: string | null; truncated?: boolean; omitted?: string[] }
 interface Config { name: string; explanationReveal: 'immediate' | 'click'; provider: string; lang: string }
 
 const state = {
@@ -208,14 +208,14 @@ function lineContent(p: Part, text: string, paths: string[]): (Node | string)[] 
   return [a, text.slice((text.startsWith('`') ? 1 : 0) + path.length)];
 }
 
-function renderExplanationText(text: string): HTMLElement[] {
+function renderExplanationText(text: string, partial: boolean): HTMLElement[] {
   const parsed = parseExplanation(text);
   if (!parsed) return [el('pre', { text })];
   const paths = state.files.map((f) => f.path);
   const out: HTMLElement[] = [];
   if (parsed.pre) out.push(el('pre', { text: parsed.pre }));
   for (const p of parsed.parts) {
-    const calm = p.key === 'gap' && gapIsCalm(p);
+    const calm = p.key === 'gap' && gapIsCalm(p, partial);
     const card = el('details', { cls: `part part-${p.key}${calm ? ' calm' : ''}` });
     card.open = partOpen(p.key);
     card.addEventListener('toggle', () => rememberOpen(p.key, card.open));
@@ -260,7 +260,11 @@ function renderExplain(): HTMLElement {
       b.addEventListener('click', () => { state.revealed = true; render(); });
       box.append(b);
     } else {
-      box.append(...renderExplanationText(ex.text));
+      // fixed text, never written by the model: the explanation did not see the whole diff
+      const omitted = ex.omitted?.length ?? 0;
+      if (omitted) box.append(el('div', { cls: 'notice', text: t('explain.omitted', { n: omitted }) }));
+      else if (ex.truncated) box.append(el('div', { cls: 'notice', text: t('explain.partial') }));
+      box.append(...renderExplanationText(ex.text, omitted > 0 || !!ex.truncated));
     }
   } else if (ex === undefined) {
     box.append(el('div', { cls: 'hint', text: t('explain.loading') }));

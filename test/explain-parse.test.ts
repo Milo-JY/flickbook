@@ -88,6 +88,13 @@ describe('explanation parsing', () => {
     expect(gapIsCalm({ key: 'gap', label: 'Gap', lines: [] })).toBe(false);
   });
 
+  it('Gap is never calm when the explanation saw only part of the diff', () => {
+    const none = { key: 'gap' as const, label: 'Gap', lines: [{ bullet: false, text: 'None.' }] };
+    expect(gapIsCalm(none)).toBe(true);
+    expect(gapIsCalm(none, false)).toBe(true);
+    expect(gapIsCalm(none, true)).toBe(false);
+  });
+
   it('recognizes label variants: heading, numbering, bold, indent, case, full-width colon, CRLF', () => {
     const keys = (t: string) => parseExplanation(t)!.parts.map((x) => x.key);
     const all = ['requested', 'done', 'gap', 'check', 'concepts'];

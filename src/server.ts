@@ -135,7 +135,7 @@ export async function startServer(opts: ServeOptions): Promise<Running> {
     if (what === 'explanation' && method === 'GET') return readExplanation(repo, id, n);
     if (what === 'explain' && method === 'POST') {
       const r = await explainStep(repo, id, n, { force: url.searchParams.get('force') === '1' });
-      return { provider: r.provider, configured: true, text: r.text };
+      return { provider: r.provider, configured: true, text: r.text, truncated: r.truncated, omitted: r.omitted };
     }
     throw new HttpError(404, 'not found');
   }

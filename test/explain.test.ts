@@ -313,6 +313,44 @@ describe('explain providers (unit 7)', () => {
   });
 });
 
+describe('explanation coverage notice (diff over the size limit)', () => {
+  it('reports omitted files and a cut diff via explainStep, readExplanation and the CLI; a whole diff has no notice', async () => {
+    const dir = makeRepo();
+    const stub = makeStub('claude');
+    process.env['PATH'] = `${stub.binDir}:${oldPath}`;
+    git(dir, 'config', `${NAME}.provider`, 'claude');
+    const repo = await openRepo(dir);
+    const { id } = await startSession(repo);
+    writeFileSync(join(dir, 'a.txt'), 'one\ntwo\n');
+    await stepSession(repo, { note: 'small' }); // step 1: whole diff
+    const big = 'x'.repeat(99) + '\n';
+    writeFileSync(join(dir, 'big1.txt'), big.repeat(400)); // ~40 KB
+    writeFileSync(join(dir, 'big2.txt'), big.repeat(400)); // ~40 KB: does not fit after big1
+    await stepSession(repo, { note: 'two big files' }); // step 2: big2.txt omitted
+    writeFileSync(join(dir, 'huge.txt'), big.repeat(1000)); // ~100 KB alone: cut
+    await stepSession(repo, { note: 'one huge file' }); // step 3: truncated, nothing omitted
+
+    const s1 = await explainStep(repo, id, 1);
+    expect(s1).toMatchObject({ truncated: false, omitted: [] });
+    const s2 = await explainStep(repo, id, 2);
+    expect(s2).toMatchObject({ truncated: true, omitted: ['big2.txt'] });
+    expect(await readExplanation(repo, id, 2)).toMatchObject({ truncated: true, omitted: ['big2.txt'] });
+    expect((await explainStep(repo, id, 2)).cached).toBe(true);
+    expect((await explainStep(repo, id, 2)).omitted).toEqual(['big2.txt']); // cache hit keeps the notice
+    const s3 = await explainStep(repo, id, 3);
+    expect(s3).toMatchObject({ truncated: true, omitted: [] });
+
+    const env = { env: { PATH: `${stub.binDir}:${oldPath}` } };
+    const c1 = await runCli(dir, ['explain', id, '--step', '1'], env);
+    expect(c1.code).toBe(0);
+    expect(c1.stdout).not.toMatch(/^Note:/m);
+    const c2 = await runCli(dir, ['explain', id, '--step', '2'], env);
+    expect(c2.stdout).toContain('Note: 1 file(s) were not included in this explanation');
+    const c3 = await runCli(dir, ['explain', id, '--step', '3'], env);
+    expect(c3.stdout).toContain('Note: this explanation saw only part of the diff');
+  });
+});
+
 describe('minimalEnv cloud credentials', () => {
   it('passes AWS_* only with CLAUDE_CODE_USE_BEDROCK and GOOGLE_* only with CLAUDE_CODE_USE_VERTEX', async () => {
     const { minimalEnv } = await import('../src/explain/run.js');
