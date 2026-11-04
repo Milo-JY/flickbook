@@ -155,7 +155,9 @@ export async function computeStats(repo: Repo, input: StepRef[], budget: number 
   for (const p of touched) {
     if (LOCKFILES.has(basename(p))) unmeasured.set(p, 'lockfile');
     else if (binary.has(p)) unmeasured.set(p, 'binary');
-    else if (/[\n\r]/.test(p)) unmeasured.set(p, 'unreadable'); // cannot be sent to cat-file on stdin
+    // a newline cannot be sent to cat-file on stdin; U+FFFD means the name was not valid UTF-8 and was decoded lossily,
+    // so it could name a different path than the one in git
+    else if (/[\n\r\uFFFD]/.test(p)) unmeasured.set(p, 'unreadable');
   }
   const candidates = [...touched].filter((p) => !unmeasured.has(p)).sort();
 

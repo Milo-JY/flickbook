@@ -1,4 +1,6 @@
+import { execFileSync } from 'node:child_process';
 import { writeFileSync, renameSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { git as gitRun } from '../src/git.js';
@@ -106,5 +108,37 @@ describe('computeStats', () => {
     const r = await computeStats(repo, await readSteps(repo, sid), 10);
     expect(r.unmeasured).toEqual([{ path: 'y.txt', reason: 'budget' }]);
     expect(r.steps[1]!.metrics.indentSum).toBe(2); // only x.txt is counted
+  });
+
+  it('lists a path that is not valid UTF-8 as unreadable instead of counting it as 0', async () => {
+    const dir = makeRepo();
+    const repo = await openRepo(dir);
+    // plumbing only: a file system may refuse such a name, git does not
+    const env = { ...process.env, GIT_INDEX_FILE: join(tmpdir(), `rr-idx-${process.pid}-${Date.now()}`) };
+    const g = (args: string[], input?: Buffer) => execFileSync('git', args, { cwd: dir, env, input, encoding: 'utf8' }).trim();
+    const baseCommit = g(['rev-parse', 'HEAD']);
+    g(['read-tree', 'HEAD']);
+    const blob = g(['hash-object', '-w', '--stdin'], Buffer.from('    deep\n'));
+    g(['update-index', '-z', '--index-info'], Buffer.concat([Buffer.from(`100644 ${blob}\t`), Buffer.from([0x66, 0xff, 0x2e, 0x74, 0x78, 0x74]), Buffer.from([0])]));
+    const next = g(['commit-tree', g(['write-tree']), '-p', baseCommit, '-m', 'odd name']);
+    rmSync(env.GIT_INDEX_FILE, { force: true });
+    const r = await computeStats(repo, [{ n: 0, commit: baseCommit }, { n: 1, commit: next }]);
+    expect(r.unmeasured).toHaveLength(1);
+    expect(r.unmeasured[0]!.reason).toBe('unreadable');
+    expect(r.steps[1]!.metrics.indentSum).toBe(0);
+    expect(r.steps[1]!.files).toHaveLength(1);
+  });
+
+  it('is read-only toward the repository: status and refs are unchanged', async () => {
+    const dir = makeRepo();
+    const repo = await openRepo(dir);
+    const sid = (await startSession(repo)).id;
+    writeFileSync(join(dir, 'a.txt'), 'one\n  two\n');
+    writeFileSync(join(dir, 'new.txt'), 'x\n');
+    await stepSession(repo, { note: 'edit' });
+    const snap = () => [git(dir, 'status', '--porcelain'), git(dir, 'for-each-ref'), git(dir, 'rev-parse', 'HEAD')].join('\n--\n');
+    const before = snap();
+    await computeStats(repo, await readSteps(repo, sid));
+    expect(snap()).toBe(before);
   });
 });
