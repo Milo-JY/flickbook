@@ -11,6 +11,12 @@ interface StepInfo {
 }
 interface FileDiff { status: string; path: string; oldPath?: string; diff: string }
 interface Explanation { provider: string; configured: boolean; text: string | null; truncated?: boolean; omitted?: string[] }
+interface StatsFile { path: string; oldPath?: string; added: number; removed: number; binary: boolean }
+interface StatsMetrics { added: number; removed: number; filesTouched: number; largestHunk: number; indentSum: number; indentMax: number }
+interface Stats {
+  steps: { n: number; files: StatsFile[]; metrics: StatsMetrics }[];
+  unmeasured: { path: string; reason: string }[];
+}
 interface Config { name: string; explanationReveal: 'immediate' | 'click'; provider: string; lang: string }
 
 const state = {
@@ -22,6 +28,7 @@ const state = {
   base: 'prev' as 'prev' | 'baseline',
   layout: 'line-by-line' as 'line-by-line' | 'side-by-side',
   files: [] as FileDiff[],
+  stats: null as Stats | null,
   file: -1, // -1 = all files
   revealed: false,
   explainError: '',
@@ -68,7 +75,8 @@ const pad = (n: number) => String(n).padStart(4, '0');
 const shortTime = (t: string) => (t.length >= 19 ? t.slice(11, 19) : t);
 const firstLine = (s: string) => s.split('\n').find((l) => l.trim()) ?? '';
 
-async function loadStep(): Promise<void> {
+/** `file`: show only this path's diff once loaded (all files if the step has no such path). */
+async function loadStep(file?: string): Promise<void> {
   state.file = -1;
   state.revealed = false;
   state.explainError = '';
@@ -77,6 +85,7 @@ async function loadStep(): Promise<void> {
     `/api/sessions/${state.sessionId}/steps/${n}/diff?base=${state.base}`,
   );
   state.files = diff.files;
+  if (file !== undefined) state.file = state.files.findIndex((f) => f.path === file);
   render();
   if (n > 0) {
     const ex = await getJson<Explanation>(`/api/sessions/${state.sessionId}/steps/${n}/explanation`);
@@ -85,11 +94,11 @@ async function loadStep(): Promise<void> {
 }
 const cache = new Map<number, Explanation>();
 
-async function selectStep(n: number): Promise<void> {
+async function selectStep(n: number, file?: string): Promise<void> {
   if (n < 0 || n >= state.steps.length) return;
   state.sel = n;
   history.replaceState(null, '', `#/${state.sessionId}/${n}`);
-  await loadStep().catch(showFatal);
+  await loadStep(file).catch(showFatal);
 }
 
 function showFatal(e: unknown): void {
@@ -291,6 +300,106 @@ function seg(opts: [string, string][], current: string, on: (v: string) => void)
   return s;
 }
 
+// Piano-roll timeline: rows = files changed anywhere in the session (biggest first), columns = steps 1..N.
+// Built once per session from /stats; render() only moves the `sel` class. All text goes in via textContent.
+const timelineBox = el('section', { id: 'timeline' });
+let colEls = new Map<number, HTMLElement[]>();
+const tips = new Map<HTMLElement, string>();
+const tipEl = el('div', { id: 'tip' });
+document.body.append(tipEl);
+
+const signed = (a: number, r: number) => `+${a} −${r}`;
+
+function buildTimeline(): void {
+  timelineBox.replaceChildren();
+  colEls = new Map();
+  tips.clear();
+  const stats = state.stats;
+  if (!stats) return;
+  const cols = stats.steps.filter((s) => s.n > 0);
+  if (cols.length === 0) {
+    timelineBox.append(el('div', { cls: 'hint', text: t('timeline.baselineOnly') }));
+    return;
+  }
+  const totals = new Map<string, number>();
+  const at = new Map<number, Map<string, StatsFile>>();
+  let maxCell = 1;
+  for (const s of cols) {
+    const m = new Map<string, StatsFile>();
+    at.set(s.n, m);
+    for (const f of s.files) {
+      m.set(f.path, f);
+      totals.set(f.path, (totals.get(f.path) ?? 0) + f.added + f.removed);
+      maxCell = Math.max(maxCell, f.added + f.removed);
+    }
+  }
+  const rows = [...totals.keys()].sort((a, b) => totals.get(b)! - totals.get(a)! || (a < b ? -1 : a > b ? 1 : 0));
+  const grid = el('div', { cls: 'tl-grid' });
+  grid.style.gridTemplateColumns = `minmax(90px, 220px) repeat(${cols.length}, minmax(12px, 1fr))`;
+  const mark = (n: number, e: HTMLElement) => { (colEls.get(n) ?? colEls.set(n, []).get(n)!).push(e); };
+
+  grid.append(el('div', { cls: 'tl-corner', text: t('timeline.title') }));
+  for (const s of cols) {
+    const h = el('div', { cls: 'tl-head', text: String(s.n) });
+    h.addEventListener('click', () => void selectStep(s.n));
+    mark(s.n, h);
+    grid.append(h);
+  }
+  for (const path of rows) {
+    const label = el('div', { cls: 'tl-label', text: path });
+    tips.set(label, path);
+    grid.append(label);
+    for (const s of cols) {
+      const f = at.get(s.n)!.get(path);
+      const cell = el('div', { cls: 'cell' });
+      if (f?.binary) {
+        cell.classList.add('bin');
+        cell.textContent = t('timeline.binary');
+        tips.set(cell, t('timeline.binary'));
+      } else if (f) {
+        const total = f.added + f.removed;
+        cell.classList.add('on');
+        const add = el('span', { cls: 'a' });
+        const del = el('span', { cls: 'd' });
+        add.style.flexGrow = String(f.added);
+        del.style.flexGrow = String(f.removed);
+        cell.style.opacity = String(0.3 + 0.7 * (total ? Math.log1p(total) / Math.log1p(maxCell) : 0));
+        cell.append(add, del);
+        tips.set(cell, signed(f.added, f.removed));
+      }
+      cell.addEventListener('click', () => { state.base = 'prev'; void selectStep(s.n, path); });
+      mark(s.n, cell);
+      grid.append(cell);
+    }
+  }
+  grid.addEventListener('mousemove', (e) => {
+    const c = (e.target as HTMLElement).closest<HTMLElement>('.cell, .tl-label');
+    const text = c ? tips.get(c) : undefined;
+    if (text === undefined) { tipEl.style.display = 'none'; return; }
+    tipEl.textContent = text;
+    tipEl.style.display = 'block';
+    tipEl.style.left = `${Math.min(e.clientX + 12, window.innerWidth - 160)}px`;
+    tipEl.style.top = `${e.clientY + 14}px`;
+  });
+  grid.addEventListener('mouseleave', () => { tipEl.style.display = 'none'; });
+  timelineBox.append(grid);
+}
+
+function updateTimelineSel(): void {
+  for (const [n, els] of colEls) for (const e of els) e.classList.toggle('sel', n === state.sel);
+  timelineBox.querySelector('.tl-head.sel')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+async function loadStats(): Promise<void> {
+  try {
+    state.stats = await getJson<Stats>(`/api/sessions/${state.sessionId}/stats`);
+    buildTimeline();
+    render();
+  } catch (e) {
+    timelineBox.replaceChildren(el('div', { cls: 'hint', text: t('error.prefix', { message: (e as Error).message }) }));
+  }
+}
+
 let renderedSel = -1;
 function render(): void {
   const header = el('header', {}, el('h1', { text: state.config.name }), el('span', { cls: 'sess', text: state.sessionId }), el('span', { cls: 'spacer' }),
@@ -299,9 +408,14 @@ function render(): void {
   );
   const main = el('main', {}, renderSteps(), renderCenter(), renderExplain());
   const prevScroll = document.querySelector('#steps')?.scrollTop ?? 0;
+  const tlTop = timelineBox.scrollTop;
+  const tlLeft = timelineBox.scrollLeft;
   // keep the explanation's scroll position while staying on the same step (e.g. after a file link click)
   const prevExplain = renderedSel === state.sel ? document.querySelector('#explain')?.scrollTop ?? 0 : 0;
-  app.replaceChildren(header, main);
+  app.replaceChildren(header, timelineBox, main);
+  timelineBox.scrollTop = tlTop; // re-attaching resets scroll
+  timelineBox.scrollLeft = tlLeft;
+  updateTimelineSel();
   renderedSel = state.sel;
   document.querySelector('#steps')!.scrollTop = prevScroll;
   document.querySelector('#explain')!.scrollTop = prevExplain;
@@ -334,6 +448,7 @@ async function init(): Promise<void> {
   state.steps = (await getJson<{ steps: StepInfo[] }>(`/api/sessions/${pick.id}`)).steps;
   const want = Number(hstep);
   state.sel = Number.isInteger(want) && want >= 0 && want < state.steps.length ? want : Math.min(1, state.steps.length - 1);
+  void loadStats();
   await loadStep();
 }
 
