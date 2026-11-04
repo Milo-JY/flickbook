@@ -303,12 +303,51 @@ function seg(opts: [string, string][], current: string, on: (v: string) => void)
 // Piano-roll timeline: rows = files changed anywhere in the session (biggest first), columns = steps 1..N.
 // Built once per session from /stats; render() only moves the `sel` class. All text goes in via textContent.
 const timelineBox = el('section', { id: 'timeline' });
-let colEls = new Map<number, HTMLElement[]>();
+let colEls = new Map<number, Element[]>();
 const tips = new Map<HTMLElement, string>();
 const tipEl = el('div', { id: 'tip' });
 document.body.append(tipEl);
 
 const signed = (a: number, r: number) => `+${a} −${r}`;
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const svgEl = <K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string> = {}): SVGElementTagNameMap[K] => {
+  const e = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  return e;
+};
+
+/** One small line per metric, drawn on the timeline's own columns; y = difference from step 0. Not a quality score. */
+function trendRows(grid: HTMLElement, cols: Stats['steps'], base: StatsMetrics, mark: (n: number, e: Element) => void): void {
+  grid.append(el('div', { cls: 'tl-sub', text: t('trend.title') }));
+  const metrics: [MessageKey, (m: StatsMetrics) => number][] = [
+    ['trend.lines', (m) => m.added - m.removed],
+    ['trend.indentSum', (m) => m.indentSum],
+    ['trend.indentMax', (m) => m.indentMax],
+  ];
+  for (const [key, pick] of metrics) {
+    const vals = cols.map((c) => pick(c.metrics) - pick(base));
+    const lo = Math.min(0, ...vals);
+    const hi = Math.max(0, ...vals);
+    const y = (v: number) => (hi === lo ? 50 : 90 - ((v - lo) / (hi - lo)) * 80);
+    grid.append(el('div', { cls: 'tl-label', text: t(key) }));
+    const svg = svgEl('svg', { viewBox: `0 0 ${cols.length} 100`, preserveAspectRatio: 'none', class: 'tl-trend', role: 'img' });
+    svg.append(svgEl('line', { x1: '0', x2: String(cols.length), y1: String(y(0)), y2: String(y(0)), class: 'zero', 'vector-effect': 'non-scaling-stroke' }));
+    svg.append(svgEl('polyline', { points: vals.map((v, i) => `${i + 0.5},${y(v)}`).join(' '), class: 'line', 'vector-effect': 'non-scaling-stroke' }));
+    cols.forEach((c, i) => {
+      const hit = svgEl('rect', { x: String(i), y: '0', width: '1', height: '100', class: 'hit' });
+      const v = vals[i]!;
+      const title = svgEl('title');
+      title.textContent = t('trend.tip', { n: c.n, label: t(key), value: `${v > 0 ? '+' : ''}${v}` });
+      hit.append(title);
+      hit.addEventListener('click', () => void selectStep(c.n));
+      mark(c.n, hit);
+      svg.append(hit);
+    });
+    svg.style.gridColumn = '2 / -1';
+    grid.append(svg);
+  }
+}
 
 function buildTimeline(): void {
   timelineBox.replaceChildren();
@@ -336,7 +375,7 @@ function buildTimeline(): void {
   const rows = [...totals.keys()].sort((a, b) => totals.get(b)! - totals.get(a)! || (a < b ? -1 : a > b ? 1 : 0));
   const grid = el('div', { cls: 'tl-grid' });
   grid.style.gridTemplateColumns = `minmax(90px, 220px) repeat(${cols.length}, minmax(12px, 1fr))`;
-  const mark = (n: number, e: HTMLElement) => { (colEls.get(n) ?? colEls.set(n, []).get(n)!).push(e); };
+  const mark = (n: number, e: Element) => { (colEls.get(n) ?? colEls.set(n, []).get(n)!).push(e); };
 
   grid.append(el('div', { cls: 'tl-corner', text: t('timeline.title') }));
   for (const s of cols) {
@@ -345,6 +384,8 @@ function buildTimeline(): void {
     mark(s.n, h);
     grid.append(h);
   }
+  const base = stats.steps.find((s) => s.n === 0);
+  if (base) trendRows(grid, cols, base.metrics, mark);
   for (const path of rows) {
     const label = el('div', { cls: 'tl-label', text: path });
     tips.set(label, path);
