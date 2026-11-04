@@ -12,7 +12,7 @@ interface StepInfo {
 interface FileDiff { status: string; path: string; oldPath?: string; diff: string }
 interface Explanation { provider: string; configured: boolean; text: string | null; truncated?: boolean; omitted?: string[] }
 interface StatsFile { path: string; oldPath?: string; added: number; removed: number; binary: boolean }
-interface StatsMetrics { added: number; removed: number; filesTouched: number; largestHunk: number; indentSum: number; indentMax: number }
+interface StatsMetrics { added: number; removed: number; filesTouched: number; indentSum: number; indentMax: number }
 interface Stats {
   steps: { n: number; files: StatsFile[]; metrics: StatsMetrics }[];
   unmeasured: { path: string; reason: string }[];
@@ -324,7 +324,8 @@ const svgEl = <K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<strin
 function trendRows(grid: HTMLElement, cols: Stats['steps'], base: StatsMetrics, mark: (n: number, e: Element) => void): void {
   grid.append(el('div', { cls: 'tl-sub', text: t('trend.title') }));
   const metrics: [MessageKey, (m: StatsMetrics) => number][] = [
-    ['trend.lines', (m) => m.added - m.removed],
+    ['trend.changed', (m) => m.added + m.removed], // churn, not net: a reformat-only step shows up here
+    ['trend.files', (m) => m.filesTouched],
     ['trend.indentSum', (m) => m.indentSum],
     ['trend.indentMax', (m) => m.indentMax],
   ];

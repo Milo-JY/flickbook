@@ -66,15 +66,16 @@ In the web UI use `j` / `k` to move between steps, switch between "vs previous" 
 
 Between the header and the step list the web UI shows a timeline: one row per file the session changed (biggest total change first), one column per step (aligned with the step list). A cell is shaded by `log(added + removed)` and split green/red by the added/removed ratio; hover for `+a −r`. A binary file shows `bin`; a renamed file sits on its new path's row. Click a cell to open that step, "vs previous", on that file's diff.
 
-Under the column numbers, three small lines are labeled **Size & nesting**. Each is the difference from step 0 (the dashed line is zero):
+Under the column numbers, four small lines are labeled **Size & nesting**. Each is the difference from step 0 (the dashed line is zero):
 
 | Line | What it is | It can tell you | It cannot tell you |
 |---|---|---|---|
-| Net lines vs start | lines added minus lines removed between step 0 and this step | roughly how much the session grew or shrank | whether the change is right; blank lines and comments count; deleting code reads as a drop |
-| Indent total vs start | leading whitespace (tab = 4 columns) summed over the non-blank lines of every file the session touched, minus the same at step 0 | whether code moved toward deeper or shallower nesting overall | a reformat-only step (tabs to spaces, re-wrapped lines, re-indented blocks) moves this line without any change in logic; more lines also raise it; deleting a file or code drops it |
+| Lines changed since start | lines added plus lines removed between step 0 and this step (churn, not net) | how much text differs from the start | whether the change is right; blank lines and comments count; a reformat-only step raises it; code written and then deleted again disappears |
+| Files touched since start | number of files that differ from step 0 | how widely the session spread | how big each change is; a rename counts as one file |
+| Indent total vs start | leading whitespace (tab = 4 columns) summed over the non-blank lines of every file the session touched, minus the same at step 0 | whether code moved toward deeper or shallower nesting overall | a reformat-only step (tabs to spaces, re-wrapped lines, re-indented blocks) moves this line without any change in logic; more lines also raise it; deleting a file or code reads as a drop |
 | Deepest indent vs start | the largest leading-whitespace width on any one non-blank line, same file set, minus step 0 | whether one spot got much deeper | it is a single line; a wrapped argument list or a long literal counts like a nested block |
 
-These numbers describe how much changed and how it is indented. They are not a quality score and say nothing about correctness, design or readability, so read the diff. Binary files, files over 1 MiB and common lockfiles (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`, `poetry.lock`, `Gemfile.lock`, `composer.lock`, `go.sum`) are left out of the numbers; `GET /api/sessions/<id>/stats` (same token as the rest of the API) lists them under `unmeasured`. Nothing is computed by running your code; the numbers come from git objects only.
+These numbers describe how much changed and how it is indented. They are not a quality score and say nothing about correctness, design or readability, so read the diff. Binary files, files over 1 MiB, files past a 64 MiB read budget per computation, paths that are not valid UTF-8, and common lockfiles (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`, `poetry.lock`, `Gemfile.lock`, `composer.lock`, `go.sum`) are left out of the numbers; `GET /api/sessions/<id>/stats` (same token as the rest of the API) lists them under `unmeasured` with a reason (`binary`, `too-large`, `budget`, `unreadable`, `lockfile`). Nothing is computed by running your code; the numbers come from git objects only.
 
 ### Explanations (optional, off by default)
 
