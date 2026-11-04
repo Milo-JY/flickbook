@@ -86,3 +86,11 @@ export function leadingPath(text: string, paths: string[]): string | null {
   }
   return best;
 }
+
+/**
+ * True when the "Reveal explanation" button is what stands between the user and the text. The agent's own
+ * summary is hidden only in that state, so it can never be hidden with no way to bring it back.
+ */
+export function revealGateShown(o: { mode: string; revealed: boolean; provider: string; step: number; filesChanged: number; hasText: boolean }): boolean {
+  return o.mode === 'click' && !o.revealed && o.provider !== 'none' && o.step > 0 && o.filesChanged > 0 && o.hasText;
+}

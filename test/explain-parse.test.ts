@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gapIsCalm, leadingPath, parseExplanation, splitConcept } from '../web/explain-parse.js';
+import { gapIsCalm, revealGateShown, leadingPath, parseExplanation, splitConcept } from '../web/explain-parse.js';
 
 const EN = [
   'Requested: an optional discount.',
@@ -125,5 +125,18 @@ describe('explanation parsing', () => {
     expect(leadingPath('src/a.ts.', files)).toBe('src/a.ts');
     expect(leadingPath('`src/a.ts` total()', files)).toBe('src/a.ts');
     expect(leadingPath('`cart.js`, total()', files)).toBe('cart.js');
+  });
+});
+
+describe('revealGateShown', () => {
+  const base = { mode: 'click', revealed: false, provider: 'claude', step: 1, filesChanged: 2, hasText: true };
+  it('is shown only when the Reveal button is really there', () => {
+    expect(revealGateShown(base)).toBe(true);
+    expect(revealGateShown({ ...base, mode: 'immediate' })).toBe(false);
+    expect(revealGateShown({ ...base, revealed: true })).toBe(false);
+    expect(revealGateShown({ ...base, provider: 'none' })).toBe(false);
+    expect(revealGateShown({ ...base, filesChanged: 0 })).toBe(false); // nothing to explain: summary stays visible
+    expect(revealGateShown({ ...base, hasText: false })).toBe(false); // no saved explanation: summary stays visible
+    expect(revealGateShown({ ...base, step: 0 })).toBe(false);
   });
 });

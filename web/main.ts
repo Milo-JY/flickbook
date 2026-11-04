@@ -2,7 +2,7 @@ import { html as diffToHtml } from 'diff2html';
 import 'diff2html/bundles/css/diff2html.min.css';
 import './style.css';
 import { translate, pickLang, type MessageKey } from './i18n';
-import { gapIsCalm, leadingPath, parseExplanation, splitConcept, type Part, type PartKey } from './explain-parse';
+import { gapIsCalm, revealGateShown, leadingPath, parseExplanation, splitConcept, type Part, type PartKey } from './explain-parse';
 
 interface SessionSummary { id: string; steps: number; start: string; last: string; active: boolean; note: string }
 interface StepInfo {
@@ -254,8 +254,11 @@ function renderExplain(): HTMLElement {
   if (s.context || s.agentSummary) {
     const why = el('div', { cls: 'why' });
     if (s.context) why.append(el('div', {}, el('b', { text: t('why.prompt') }), firstLine(s.context)));
-    // in click mode the agent's own account is part of what is hidden until revealed (no provider: nothing to reveal)
-    const hideAgent = state.config.explanationReveal === 'click' && !state.revealed && state.config.provider !== 'none';
+    // the agent's own account is hidden only while the Reveal button is shown, so it can always be brought back
+    const hideAgent = revealGateShown({
+      mode: state.config.explanationReveal, revealed: state.revealed, provider: state.config.provider,
+      step: state.sel, filesChanged: s.filesChanged, hasText: !!cache.get(state.sel)?.text,
+    });
     if (s.agentSummary && !hideAgent) why.append(el('div', {}, el('b', { text: t('why.agent') }), firstLine(s.agentSummary)));
     if (why.firstChild) box.append(why);
   }
