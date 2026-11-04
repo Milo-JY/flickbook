@@ -102,6 +102,7 @@ async function explainNow(): Promise<void> {
   try {
     const ex = await getJson<Explanation>(`/api/sessions/${state.sessionId}/steps/${n}/explain`, { method: 'POST' });
     cache.set(n, ex);
+    if (state.sel === n) state.revealed = true; // the user just asked for the text; do not hide it behind a second click
   } catch (e) {
     state.explainError = (e as Error).message;
   }
@@ -244,8 +245,10 @@ function renderExplain(): HTMLElement {
   if (s.context || s.agentSummary) {
     const why = el('div', { cls: 'why' });
     if (s.context) why.append(el('div', {}, el('b', { text: t('why.prompt') }), firstLine(s.context)));
-    if (s.agentSummary) why.append(el('div', {}, el('b', { text: t('why.agent') }), firstLine(s.agentSummary)));
-    box.append(why);
+    // in click mode the agent's own account is part of what is hidden until revealed (no provider: nothing to reveal)
+    const hideAgent = state.config.explanationReveal === 'click' && !state.revealed && state.config.provider !== 'none';
+    if (s.agentSummary && !hideAgent) why.append(el('div', {}, el('b', { text: t('why.agent') }), firstLine(s.agentSummary)));
+    if (why.firstChild) box.append(why);
   }
   box.append(el('h2', { text: t('explain.heading') }));
   if (state.sel === 0) { box.append(el('div', { cls: 'hint', text: t('explain.baselineHint') })); return box; }
