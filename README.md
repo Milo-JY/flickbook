@@ -61,6 +61,21 @@ A step with no changes since the previous one is skipped. Uncommitted changes an
 
 In the web UI use `j` / `k` to move between steps, switch between "vs previous" and "vs baseline" (cumulative), and between unified and split.
 
+
+### Timeline and size & nesting
+
+Between the header and the step list the web UI shows a timeline: one row per file the session changed (biggest total change first), one column per step (aligned with the step list). A cell is shaded by `log(added + removed)` and split green/red by the added/removed ratio; hover for `+a −r`. A binary file shows `bin`; a renamed file sits on its new path's row. Click a cell to open that step, "vs previous", on that file's diff.
+
+Under the column numbers, three small lines are labeled **Size & nesting**. Each is the difference from step 0 (the dashed line is zero):
+
+| Line | What it is | It can tell you | It cannot tell you |
+|---|---|---|---|
+| Net lines vs start | lines added minus lines removed between step 0 and this step | roughly how much the session grew or shrank | whether the change is right; blank lines and comments count; deleting code reads as a drop |
+| Indent total vs start | leading whitespace (tab = 4 columns) summed over the non-blank lines of every file the session touched, minus the same at step 0 | whether code moved toward deeper or shallower nesting overall | a reformat-only step (tabs to spaces, re-wrapped lines, re-indented blocks) moves this line without any change in logic; more lines also raise it; deleting a file or code drops it |
+| Deepest indent vs start | the largest leading-whitespace width on any one non-blank line, same file set, minus step 0 | whether one spot got much deeper | it is a single line; a wrapped argument list or a long literal counts like a nested block |
+
+These numbers describe how much changed and how it is indented. They are not a quality score and say nothing about correctness, design or readability, so read the diff. Binary files, files over 1 MiB and common lockfiles (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`, `poetry.lock`, `Gemfile.lock`, `composer.lock`, `go.sum`) are left out of the numbers; `GET /api/sessions/<id>/stats` (same token as the rest of the API) lists them under `unmeasured`. Nothing is computed by running your code; the numbers come from git objects only.
+
 ### Explanations (optional, off by default)
 
 Explanations are written by an AI and can be wrong. That is why every explanation includes places to check yourself; treat it as a guide to what to read, not as the answer. Text inside the diff (comments, strings, file contents) can also try to steer the explanation, which is one more reason to read the diff yourself.
@@ -75,7 +90,7 @@ Each explanation has five labeled parts: **Requested** (what you asked for, from
 
 `git config flickbook.lang ko` switches both the explanations and the web UI to Korean (default `en`; `ko`, `ko-KR` and the like mean Korean, any other value falls back to English). CLI messages and error texts from the server stay in English.
 
-In this version explanations use the Claude Code CLI (`claude`) you already have; support for other agents such as Codex is planned for a later version, and `flickbook.provider codex` is refused with a message. It runs in an empty temporary directory and is kept away from your own agent setup: no tools, `--safe-mode` (no CLAUDE.md, skills, plugins, hooks or MCP servers), `--strict-mcp-config` and `--disable-slash-commands`. It gets a minimal environment (`PATH`, `HOME`, `USER`/`LOGNAME`, `LANG`/`LC_*`, `TERM`, `TMPDIR`, proxy and CA-certificate variables, `XDG_*` directories, and `ANTHROPIC_*` / `CLAUDE_*`), so other secrets in your shell, such as cloud keys or tokens, are not passed on. Explanations are generated only when you click the button or run `flickbook explain`, cached in `.git/flickbook/explain/`, and shown immediately once they exist.
+In this version explanations use the Claude Code CLI (`claude`) you already have; support for other agents such as Codex is planned for a later version, and `flickbook.provider codex` is refused with a message. It runs in an empty temporary directory and is kept away from your own agent setup: no tools, `--safe-mode` (no CLAUDE.md, skills, plugins, hooks or MCP servers), `--strict-mcp-config` and `--disable-slash-commands`. It gets a minimal environment (`PATH`, `HOME`, `USER`/`LOGNAME`, `LANG`/`LC_*`, `TERM`, `TMPDIR`, proxy and CA-certificate variables, `XDG_*` directories, and `ANTHROPIC_*` / `CLAUDE_*`), so other secrets in your shell, such as cloud keys or tokens, are not passed on. Explanations are generated only when you click the button or run `flickbook explain`, cached in `.git/flickbook/explain/`, and shown immediately once they exist. To practice reading first, run `git config flickbook.reveal click` (default `immediate`; any other value means `immediate`): an existing explanation and the agent's own summary then stay behind a "Reveal explanation" button, while the prompt (what was asked) stays visible.
 
 ### Claude Code hook
 
