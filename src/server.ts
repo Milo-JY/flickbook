@@ -9,6 +9,7 @@ import { explainStep, readExplanation, resolveLang, resolveReveal } from './expl
 import { resolveProviderName } from './explain/providers.js';
 import type { Repo } from './repo.js';
 import { listSessions, parseStepNumber, readSteps, validateSessionId } from './session.js';
+import { computeStats } from './stats.js';
 import { NAME } from './name.js';
 
 const MIME: Record<string, string> = {
@@ -113,6 +114,10 @@ export async function startServer(opts: ServeOptions): Promise<Running> {
         });
       }
       return { id, steps: out };
+    }
+    if (parts[2] === 'stats' && parts.length === 3) {
+      if (method !== 'GET') throw new HttpError(405, 'method not allowed');
+      return computeStats(repo, steps);
     }
     if (parts[2] !== 'steps' || parts.length < 4) throw new HttpError(404, 'not found');
     let n: number;

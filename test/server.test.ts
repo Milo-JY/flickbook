@@ -66,6 +66,40 @@ describe('local server (unit 5)', () => {
     expect((await cfg()).explanationReveal).toBe('immediate');
   });
 
+  it('serves per-step stats: bad id 400, no token 403, byte-identical repeat calls, unmeasured listed', async () => {
+    expect((await call('GET', '/api/sessions/bad%20id/stats')).status).toBe(400);
+    expect((await call('GET', `/api/sessions/${sid}/stats`, {}, null)).status).toBe(403);
+    expect((await call('GET', '/api/sessions/nosuch/stats')).status).toBe(404);
+    const a = await call('GET', `/api/sessions/${sid}/stats`);
+    const b = await call('GET', `/api/sessions/${sid}/stats`);
+    expect(a.status).toBe(200);
+    expect(a.body).toBe(b.body);
+    const j = JSON.parse(a.body) as { steps: { n: number; files: { path: string }[]; metrics: { added: number } }[]; unmeasured: unknown[] };
+    expect(j.steps.map((s) => s.n)).toEqual([0, 1, 2]);
+    expect(j.steps[1]!.files.map((f) => f.path)).toEqual(['a.txt']);
+    expect(j.steps[1]!.metrics.added).toBe(1);
+    expect(j.unmeasured).toEqual([]);
+  });
+
+  it('stats lists files it cannot measure (lockfile, binary)', async () => {
+    const d2 = makeRepo();
+    const repo2 = await openRepo(d2);
+    const sid2 = (await startSession(repo2)).id;
+    writeFileSync(join(d2, 'pnpm-lock.yaml'), 'a: 1\n');
+    writeFileSync(join(d2, 'x.bin'), Buffer.from([0, 1, 2]));
+    await stepSession(repo2, { note: 'locks' });
+    const run2 = await startServer({ repo: repo2, webRoot: resolve('dist/web') });
+    try {
+      const r = await call('GET', `/api/sessions/${sid2}/stats`, {}, run2.token, run2.port);
+      expect(JSON.parse(r.body).unmeasured).toEqual([
+        { path: 'pnpm-lock.yaml', reason: 'lockfile' },
+        { path: 'x.bin', reason: 'binary' },
+      ]);
+    } finally {
+      await run2.close();
+    }
+  });
+
   it('serves sessions JSON on 127.0.0.1', async () => {
     const r = await call('GET', '/api/sessions');
     expect(r.status).toBe(200);
