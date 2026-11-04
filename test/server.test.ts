@@ -55,6 +55,17 @@ describe('local server (unit 5)', () => {
     expect((await cfg()).lang).toBe('en');
   });
 
+  it('exposes the reveal mode via /api/config (immediate by default, click when configured, junk is immediate)', async () => {
+    const cfg = async () => JSON.parse((await call('GET', '/api/config')).body) as { explanationReveal: string };
+    expect((await cfg()).explanationReveal).toBe('immediate');
+    git(dir, 'config', `${NAME}.reveal`, 'click');
+    expect((await cfg()).explanationReveal).toBe('click');
+    git(dir, 'config', `${NAME}.reveal`, 'sometimes');
+    expect((await cfg()).explanationReveal).toBe('immediate');
+    git(dir, 'config', '--unset', `${NAME}.reveal`);
+    expect((await cfg()).explanationReveal).toBe('immediate');
+  });
+
   it('serves sessions JSON on 127.0.0.1', async () => {
     const r = await call('GET', '/api/sessions');
     expect(r.status).toBe(200);

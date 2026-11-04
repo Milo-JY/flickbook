@@ -24,6 +24,13 @@ export async function resolveLang(repo: Repo): Promise<string> {
   return l === 'ko' || l.startsWith('ko-') ? 'ko' : 'en';
 }
 
+/** `git config flickbook.reveal click` hides existing explanations behind a button; anything else shows them at once. */
+export async function resolveReveal(repo: Repo): Promise<'click' | 'immediate'> {
+  const raw = await gitConfig(repo, `${NAME}.reveal`);
+  if (raw === undefined) return DEFAULTS.explanationReveal;
+  return raw.trim().toLowerCase() === 'click' ? 'click' : 'immediate';
+}
+
 interface Prepared {
   provider: ProviderName;
   lang: string;

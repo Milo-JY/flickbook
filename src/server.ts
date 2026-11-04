@@ -3,10 +3,9 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import type { AddressInfo } from 'node:net';
-import { DEFAULTS } from './config.js';
 import { countChangedFiles, diffFiles } from './diff.js';
 import { RrError } from './errors.js';
-import { explainStep, readExplanation, resolveLang } from './explain/index.js';
+import { explainStep, readExplanation, resolveLang, resolveReveal } from './explain/index.js';
 import { resolveProviderName } from './explain/providers.js';
 import type { Repo } from './repo.js';
 import { listSessions, parseStepNumber, readSteps, validateSessionId } from './session.js';
@@ -82,7 +81,7 @@ export async function startServer(opts: ServeOptions): Promise<Running> {
     if (parts[0] === 'config' && parts.length === 1 && method === 'GET') {
       return {
         name: NAME,
-        explanationReveal: DEFAULTS.explanationReveal,
+        explanationReveal: await resolveReveal(repo),
         provider: await resolveProviderName(repo),
         lang: await resolveLang(repo),
       };
