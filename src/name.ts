@@ -4,4 +4,4 @@
  * VERSION must equal package.json "version"; test/name.test.ts checks both.
  */
 export const NAME = 'flickbook';
-export const VERSION = '0.1.1';
+export const VERSION = '0.2.0';
