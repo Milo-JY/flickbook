@@ -48,3 +48,40 @@ export function git(args: string[], opts: GitOptions): Promise<GitResult> {
     child.stdin.end(opts.input ?? '');
   });
 }
+
+export interface BatchEntry {
+  /** First token of the header line (the object id); for a missing object, whatever git echoed. */
+  id: string;
+  /** `missing` when git has no such object. */
+  type: string;
+  size: number;
+  body: Buffer;
+}
+
+/**
+ * Parse `git cat-file --batch` output: a header line, then exactly <size> bytes, then LF. One entry per
+ * request, in request order. A missing object has a one-line `<name> missing` header and no body.
+ */
+export function parseBatch(buf: Buffer): BatchEntry[] {
+  const out: BatchEntry[] = [];
+  let pos = 0;
+  while (pos < buf.length) {
+    const nl = buf.indexOf(0x0a, pos);
+    if (nl < 0) break;
+    const line = buf.subarray(pos, nl).toString('utf8');
+    pos = nl + 1;
+    if (line.endsWith(' missing')) {
+      out.push({ id: line.slice(0, -8), type: 'missing', size: 0, body: Buffer.alloc(0) });
+      continue;
+    }
+    const [id, type, size] = line.split(' ');
+    const len = Number.parseInt(size ?? '', 10);
+    if (!id || !type || !Number.isInteger(len)) {
+      out.push({ id: line, type: 'missing', size: 0, body: Buffer.alloc(0) });
+      continue;
+    }
+    out.push({ id, type, size: len, body: buf.subarray(pos, pos + len) });
+    pos += len + 1; // trailing LF after the object
+  }
+  return out;
+}

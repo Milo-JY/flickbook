@@ -1,7 +1,7 @@
 import { readFile, writeFile, rm, link, mkdir, open, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { git } from './git.js';
+import { git, parseBatch } from './git.js';
 import type { Repo } from './repo.js';
 import { RrError } from './errors.js';
 import { REF_PREFIX, ZERO_OID, LIMITS } from './config.js';
@@ -83,21 +83,12 @@ async function readRefs(repo: Repo, pattern: string): Promise<Step[]> {
 /** Commit messages by oid, parsed from `git cat-file --batch` (header line + exactly <size> bytes). */
 async function readMessages(repo: Repo, oids: string[]): Promise<Map<string, string>> {
   const r = await git(['cat-file', '--batch'], { cwd: repo.top, input: [...new Set(oids)].join('\n') + '\n' });
-  const buf = r.stdoutBuf;
   const out = new Map<string, string>();
-  let pos = 0;
-  while (pos < buf.length) {
-    const nl = buf.indexOf(0x0a, pos);
-    if (nl < 0) break;
-    const [oid, type, size] = buf.subarray(pos, nl).toString('utf8').split(' ');
-    pos = nl + 1;
-    if (type === 'missing' || !size) continue;
-    const len = Number.parseInt(size, 10);
-    const body = buf.subarray(pos, pos + len).toString('utf8');
-    pos += len + 1; // trailing LF after the object
-    if (type !== 'commit' || !oid) continue;
+  for (const e of parseBatch(r.stdoutBuf)) {
+    if (e.type !== 'commit') continue;
+    const body = e.body.toString('utf8');
     const sep = body.indexOf('\n\n');
-    out.set(oid, sep < 0 ? '' : body.slice(sep + 2));
+    out.set(e.id, sep < 0 ? '' : body.slice(sep + 2));
   }
   return out;
 }
