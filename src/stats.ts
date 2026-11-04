@@ -165,6 +165,8 @@ export async function computeStats(repo: Repo, input: StepRef[], budget: number 
   const requests: string[] = [];
   for (const s of steps) for (const p of candidates) requests.push(`${s.commit}:${p}`);
   const infos: { oid: string; size: number }[] = [];
+  // infos is laid out step by step: all candidate paths of step 0, then of step 1, ...
+  const infoAt = (si: number, ci: number) => infos[si * candidates.length + ci];
   if (requests.length) {
     const r = await git(['cat-file', '--batch-check'], { cwd: repo.top, input: requests.join('\n') + '\n' });
     const lines = r.stdout.split('\n');
@@ -175,7 +177,7 @@ export async function computeStats(repo: Repo, input: StepRef[], budget: number 
     }
     candidates.forEach((p, ci) => {
       for (let si = 0; si < steps.length; si++) {
-        if (infos[si * candidates.length + ci]!.size > MAX_BLOB_BYTES) unmeasured.set(p, 'too-large');
+        if (infoAt(si, ci)!.size > MAX_BLOB_BYTES) unmeasured.set(p, 'too-large');
       }
     });
   }
@@ -186,7 +188,7 @@ export async function computeStats(repo: Repo, input: StepRef[], budget: number 
     if (unmeasured.has(p)) return;
     const fresh = new Map<string, number>();
     for (let si = 0; si < steps.length; si++) {
-      const x = infos[si * candidates.length + ci]!;
+      const x = infoAt(si, ci)!;
       if (x.oid && !counted.has(x.oid)) fresh.set(x.oid, x.size);
     }
     const cost = [...fresh.values()].reduce((a, b) => a + b, 0);
@@ -206,7 +208,7 @@ export async function computeStats(repo: Repo, input: StepRef[], budget: number 
   }
   candidates.forEach((p, ci) => {
     for (let si = 0; si < steps.length; si++) {
-      const oid = infos[si * candidates.length + ci]?.oid;
+      const oid = infoAt(si, ci)?.oid;
       if (oid && blobs.get(oid)?.nul && !unmeasured.has(p)) unmeasured.set(p, 'binary');
     }
   });
@@ -218,7 +220,7 @@ export async function computeStats(repo: Repo, input: StepRef[], budget: number 
     let indentMax = 0;
     candidates.forEach((p, ci) => {
       if (unmeasured.has(p)) return;
-      const oid = infos[si * candidates.length + ci]?.oid;
+      const oid = infoAt(si, ci)?.oid;
       const b = oid ? blobs.get(oid) : undefined; // missing path counts as 0
       if (!b) return;
       indentSum += b.sum;
