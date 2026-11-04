@@ -9,6 +9,7 @@ import { explainStep, readExplanation, resolveLang, resolveReveal } from './expl
 import { resolveProviderName } from './explain/providers.js';
 import type { Repo } from './repo.js';
 import { listSessions, parseStepNumber, readSteps, validateSessionId } from './session.js';
+import { Lru } from './lru.js';
 import { computeStats, type SessionStats } from './stats.js';
 import { NAME } from './name.js';
 
@@ -76,9 +77,9 @@ export async function startServer(opts: ServeOptions): Promise<Running> {
     return got.length === tokenBuf.length && timingSafeEqual(got, tokenBuf);
   };
 
-  // Stats are pure in (session, last step), so keep one result per session for this run. Concurrent identical
+  // Stats are pure in (session, last step), so keep one result per session (8 most recently used) for this run. Concurrent identical
   // requests share the same in-flight promise; a failed computation is dropped so the next request retries.
-  const statsCache = new Map<string, { key: string; result: Promise<SessionStats> }>();
+  const statsCache = new Lru<string, { key: string; result: Promise<SessionStats> }>(8); // 8 most recently used sessions
   function statsFor(id: string, steps: { n: number; commit: string }[]): Promise<SessionStats> {
     const key = `${steps.length}:${steps[steps.length - 1]!.commit}`;
     const hit = statsCache.get(id);
