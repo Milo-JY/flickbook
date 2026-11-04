@@ -2,6 +2,7 @@ import { html as diffToHtml } from 'diff2html';
 import 'diff2html/bundles/css/diff2html.min.css';
 import './style.css';
 import { translate, pickLang, type MessageKey } from './i18n';
+import { timelineRowLimit } from './timeline';
 import { gapIsCalm, revealGateShown, leadingPath, parseExplanation, splitConcept, type Part, type PartKey } from './explain-parse';
 
 interface SessionSummary { id: string; steps: number; start: string; last: string; active: boolean; note: string }
@@ -376,7 +377,8 @@ function buildTimeline(): void {
       maxCell = Math.max(maxCell, f.added + f.removed);
     }
   }
-  const rows = [...totals.keys()].sort((a, b) => totals.get(b)! - totals.get(a)! || (a < b ? -1 : a > b ? 1 : 0));
+  const sorted = [...totals.keys()].sort((a, b) => totals.get(b)! - totals.get(a)! || (a < b ? -1 : a > b ? 1 : 0));
+  const rows = sorted.slice(0, timelineRowLimit(sorted.length, cols.length)); // the rest is summarised below
   const grid = el('div', { cls: 'tl-grid' });
   grid.style.gridTemplateColumns = `minmax(90px, 220px) repeat(${cols.length}, minmax(12px, 1fr))`;
   const mark = (n: number, e: Element) => { (colEls.get(n) ?? colEls.set(n, []).get(n)!).push(e); };
@@ -417,6 +419,7 @@ function buildTimeline(): void {
       grid.append(cell);
     }
   }
+  if (rows.length < sorted.length) grid.append(el('div', { cls: 'tl-more', text: t('timeline.more', { n: sorted.length - rows.length }) }));
   grid.addEventListener('mousemove', (e) => {
     const c = (e.target as HTMLElement).closest<HTMLElement>('.cell, .tl-label');
     const text = c ? tips.get(c) : undefined;
@@ -430,9 +433,14 @@ function buildTimeline(): void {
   timelineBox.append(grid);
 }
 
+let scrolledTo = -1;
 function updateTimelineSel(): void {
   for (const [n, els] of colEls) for (const e of els) e.classList.toggle('sel', n === state.sel);
-  timelineBox.querySelector('.tl-head.sel')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  // follow the selection only when it changed, so a render does not undo the user's own horizontal scrolling
+  if (scrolledTo !== state.sel && colEls.size) {
+    scrolledTo = state.sel;
+    timelineBox.querySelector('.tl-head.sel')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
 }
 
 async function loadStats(): Promise<void> {
