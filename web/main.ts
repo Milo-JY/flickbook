@@ -258,7 +258,8 @@ function renderExplain(): HTMLElement {
     // the agent's own account is hidden only while the Reveal button is shown, so it can always be brought back
     const hideAgent = revealGateShown({
       mode: state.config.explanationReveal, revealed: state.revealed, provider: state.config.provider,
-      step: state.sel, filesChanged: s.filesChanged, hasText: !!cache.get(state.sel)?.text,
+      step: state.sel, filesChanged: s.filesChanged,
+      explanation: ((e) => (e === undefined ? 'loading' : e.text ? 'text' : 'none'))(cache.get(state.sel)),
     });
     if (s.agentSummary && !hideAgent) why.append(el('div', {}, el('b', { text: t('why.agent') }), firstLine(s.agentSummary)));
     if (why.firstChild) box.append(why);

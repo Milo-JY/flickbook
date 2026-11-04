@@ -88,9 +88,13 @@ export function leadingPath(text: string, paths: string[]): string | null {
 }
 
 /**
- * True when the "Reveal explanation" button is what stands between the user and the text. The agent's own
- * summary is hidden only in that state, so it can never be hidden with no way to bring it back.
+ * True when the agent's own summary should stay hidden: the "Reveal explanation" button is shown, or is about to be
+ * (the explanation is still loading, so hiding now avoids a flash of the summary). Once loading resolves to "no saved
+ * explanation" the summary is visible again, so it can never be hidden with no way to bring it back.
  */
-export function revealGateShown(o: { mode: string; revealed: boolean; provider: string; step: number; filesChanged: number; hasText: boolean }): boolean {
-  return o.mode === 'click' && !o.revealed && o.provider !== 'none' && o.step > 0 && o.filesChanged > 0 && o.hasText;
+export function revealGateShown(o: {
+  mode: string; revealed: boolean; provider: string; step: number; filesChanged: number;
+  explanation: 'loading' | 'text' | 'none';
+}): boolean {
+  return o.mode === 'click' && !o.revealed && o.provider !== 'none' && o.step > 0 && o.filesChanged > 0 && o.explanation !== 'none';
 }

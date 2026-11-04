@@ -129,14 +129,15 @@ describe('explanation parsing', () => {
 });
 
 describe('revealGateShown', () => {
-  const base = { mode: 'click', revealed: false, provider: 'claude', step: 1, filesChanged: 2, hasText: true };
+  const base = { mode: 'click', revealed: false, provider: 'claude', step: 1, filesChanged: 2, explanation: 'text' as 'loading' | 'text' | 'none' };
   it('is shown only when the Reveal button is really there', () => {
     expect(revealGateShown(base)).toBe(true);
     expect(revealGateShown({ ...base, mode: 'immediate' })).toBe(false);
     expect(revealGateShown({ ...base, revealed: true })).toBe(false);
     expect(revealGateShown({ ...base, provider: 'none' })).toBe(false);
     expect(revealGateShown({ ...base, filesChanged: 0 })).toBe(false); // nothing to explain: summary stays visible
-    expect(revealGateShown({ ...base, hasText: false })).toBe(false); // no saved explanation: summary stays visible
+    expect(revealGateShown({ ...base, explanation: 'loading' })).toBe(true); // about to show the button: no flash of the summary
+    expect(revealGateShown({ ...base, explanation: 'none' })).toBe(false); // loaded, nothing saved: summary stays visible
     expect(revealGateShown({ ...base, step: 0 })).toBe(false);
   });
 });
