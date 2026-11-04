@@ -9,7 +9,7 @@ import { explainStep, readExplanation, resolveLang, resolveReveal } from './expl
 import { resolveProviderName } from './explain/providers.js';
 import type { Repo } from './repo.js';
 import { listSessions, parseStepNumber, readSteps, validateSessionId } from './session.js';
-import { computeStats } from './stats.js';
+import { computeStats, type SessionStats } from './stats.js';
 import { NAME } from './name.js';
 
 const MIME: Record<string, string> = {
@@ -76,6 +76,20 @@ export async function startServer(opts: ServeOptions): Promise<Running> {
     return got.length === tokenBuf.length && timingSafeEqual(got, tokenBuf);
   };
 
+  // Stats are pure in (session, last step), so keep one result per session for this run. Concurrent identical
+  // requests share the same in-flight promise; a failed computation is dropped so the next request retries.
+  const statsCache = new Map<string, { key: string; result: Promise<SessionStats> }>();
+  function statsFor(id: string, steps: { n: number; commit: string }[]): Promise<SessionStats> {
+    const key = `${steps.length}:${steps[steps.length - 1]!.commit}`;
+    const hit = statsCache.get(id);
+    if (hit && hit.key === key) return hit.result;
+    const result = computeStats(repo, steps);
+    const entry = { key, result };
+    statsCache.set(id, entry);
+    result.catch(() => { if (statsCache.get(id) === entry) statsCache.delete(id); });
+    return result;
+  }
+
   async function api(req: IncomingMessage, url: URL): Promise<unknown> {
     const parts = url.pathname.split('/').filter(Boolean).slice(1); // drop "api"
     const method = req.method ?? 'GET';
@@ -117,7 +131,7 @@ export async function startServer(opts: ServeOptions): Promise<Running> {
     }
     if (parts[2] === 'stats' && parts.length === 3) {
       if (method !== 'GET') throw new HttpError(405, 'method not allowed');
-      return computeStats(repo, steps);
+      return statsFor(id, steps);
     }
     if (parts[2] !== 'steps' || parts.length < 4) throw new HttpError(404, 'not found');
     let n: number;

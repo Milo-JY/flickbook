@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { git as gitRun } from '../src/git.js';
 import { openRepo } from '../src/repo.js';
 import { endSession, readSteps, startSession, stepSession } from '../src/session.js';
-import { computeStats, hunkSizes, indentMetrics, parseNumstat } from '../src/stats.js';
+import { computeStats, indentMetrics, parseNumstat } from '../src/stats.js';
 import { git, makeRepo } from './helpers.js';
 
 describe('indentMetrics', () => {
@@ -12,12 +12,6 @@ describe('indentMetrics', () => {
     expect(indentMetrics('a\n  b\n\tc\n\n   \n\t\t\td\n')).toEqual({ sum: 0 + 2 + 4 + 12, max: 12 });
     expect(indentMetrics('')).toEqual({ sum: 0, max: 0 });
     expect(indentMetrics('  x\r\n\r\n    \r\n')).toEqual({ sum: 2, max: 2 });
-  });
-});
-
-describe('hunkSizes', () => {
-  it('adds old and new line counts; an omitted count means 1', () => {
-    expect(hunkSizes('@@ -1,2 +1,3 @@ f\n-a\n@@ -9 +10,0 @@\n@@ -20,0 +21 @@\n')).toEqual([5, 1, 1]);
   });
 });
 
@@ -83,10 +77,9 @@ describe('computeStats', () => {
     ]);
     expect(a.steps.map((s) => s.n)).toEqual([0, 1, 2, 3, 4]); // 4 = the end snapshot, no further change
     const m = a.steps.map((s) => s.metrics);
-    expect(m[0]).toEqual({ added: 0, removed: 0, filesTouched: 0, largestHunk: 0, indentSum: 0, indentMax: 0 });
+    expect(m[0]).toEqual({ added: 0, removed: 0, filesTouched: 0, indentSum: 0, indentMax: 0 });
     // step 1: baseline has no indentation; now \t(4) + \t\t(8) + \t(4) = 16 columns, max 8
     expect(m[1]).toMatchObject({ added: 3, removed: 1, filesTouched: 1, indentSum: 16, indentMax: 8 });
-    expect(m[1]!.largestHunk).toBe(1 + 3); // one hunk: "-b();" replaced by three lines
     // step 2: a pure rename keeps indentation (old path 0 + new path 16), moves no lines
     expect(m[2]).toMatchObject({ indentSum: 16, indentMax: 8 });
     // step 3: deletion reads as a drop to 0
@@ -100,6 +93,18 @@ describe('computeStats', () => {
     const repo = await openRepo(dir);
     const sid = (await startSession(repo)).id;
     const r = await computeStats(repo, await readSteps(repo, sid));
-    expect(r).toEqual({ steps: [{ n: 0, files: [], metrics: { added: 0, removed: 0, filesTouched: 0, largestHunk: 0, indentSum: 0, indentMax: 0 } }], unmeasured: [] });
+    expect(r).toEqual({ steps: [{ n: 0, files: [], metrics: { added: 0, removed: 0, filesTouched: 0, indentSum: 0, indentMax: 0 } }], unmeasured: [] });
+  });
+
+  it('leaves files past the read budget unmeasured', async () => {
+    const dir = makeRepo();
+    const repo = await openRepo(dir);
+    const sid = (await startSession(repo)).id;
+    writeFileSync(join(dir, 'x.txt'), '  hello1\n');
+    writeFileSync(join(dir, 'y.txt'), '  hello2\n');
+    await stepSession(repo, { note: 'two files' });
+    const r = await computeStats(repo, await readSteps(repo, sid), 10);
+    expect(r.unmeasured).toEqual([{ path: 'y.txt', reason: 'budget' }]);
+    expect(r.steps[1]!.metrics.indentSum).toBe(2); // only x.txt is counted
   });
 });

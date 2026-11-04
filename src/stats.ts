@@ -1,5 +1,4 @@
 import { basename } from 'node:path';
-import { splitPatch } from './diff.js';
 import { git, parseBatch } from './git.js';
 import type { Repo } from './repo.js';
 
@@ -8,6 +7,8 @@ import type { Repo } from './repo.js';
 // they are not a quality score.
 
 export const MAX_BLOB_BYTES = 1024 * 1024;
+/** Total blob bytes read for one computation; files past it are listed as unmeasured ('budget'). */
+export const READ_BUDGET_BYTES = 64 * 1024 * 1024;
 const TAB_COLUMNS = 4;
 
 export const LOCKFILES: ReadonlySet<string> = new Set([
@@ -77,15 +78,6 @@ export function indentMetrics(text: string): { sum: number; max: number } {
   return { sum, max };
 }
 
-/** Sizes (added + removed lines) of each hunk header in one file's `--unified=0` patch chunk. */
-export function hunkSizes(chunk: string): number[] {
-  const out: number[] = [];
-  for (const m of chunk.matchAll(/^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@/gm)) {
-    out.push((m[1] === undefined ? 1 : Number(m[1])) + (m[2] === undefined ? 1 : Number(m[2])));
-  }
-  return out;
-}
-
 export interface StepFile {
   path: string;
   oldPath?: string;
@@ -100,8 +92,6 @@ export interface StepMetrics {
   removed: number;
   /** Measured files that differ from step 0. */
   filesTouched: number;
-  /** Largest single hunk (added + removed lines) in the diff from step 0. */
-  largestHunk: number;
   /** Indentation columns summed / maximised over non-blank lines of the files the session touched. */
   indentSum: number;
   indentMax: number;
@@ -114,7 +104,7 @@ export interface StepStats {
   metrics: StepMetrics;
 }
 
-export type UnmeasuredReason = 'binary' | 'lockfile' | 'too-large' | 'unreadable';
+export type UnmeasuredReason = 'binary' | 'lockfile' | 'too-large' | 'unreadable' | 'budget';
 export interface Unmeasured {
   path: string;
   reason: UnmeasuredReason;
@@ -133,34 +123,25 @@ interface StepRef {
 const numstat = async (repo: Repo, a: string, b: string): Promise<NumstatEntry[]> =>
   parseNumstat((await git([...DIFF_TREE, '--numstat', '-z', '--end-of-options', a, b], { cwd: repo.top })).stdout);
 
-/** Largest hunk per file of the a..b diff; falls back to the file's total change if chunks and entries do not line up. */
-async function hunksOf(repo: Repo, a: string, b: string, entries: NumstatEntry[]): Promise<number[]> {
-  const patch = (await git([...DIFF_TREE, '-p', '--unified=0', '--end-of-options', a, b], { cwd: repo.top })).stdout;
-  const chunks = splitPatch(patch);
-  if (chunks.length !== entries.length) return entries.map((e) => e.added + e.removed);
-  return chunks.map((c) => Math.max(0, ...hunkSizes(c)));
-}
-
-export async function computeStats(repo: Repo, input: StepRef[]): Promise<SessionStats> {
+export async function computeStats(repo: Repo, input: StepRef[], budget: number = READ_BUDGET_BYTES): Promise<SessionStats> {
   const steps = [...input].sort((x, y) => x.n - y.n);
   const base = steps.find((s) => s.n === 0) ?? steps[0];
   if (!base) return { steps: [], unmeasured: [] };
 
   // 1. what changed: since the previous step (piano roll) and since step 0 (metrics)
   const perStep = new Map<number, NumstatEntry[]>();
-  const sinceBase = new Map<number, { entries: NumstatEntry[]; hunks: number[] }>();
+  const sinceBase = new Map<number, NumstatEntry[]>();
   for (const s of steps) {
     if (s === base) continue;
     const prev = steps.find((x) => x.n === s.n - 1);
     perStep.set(s.n, prev ? await numstat(repo, prev.commit, s.commit) : []);
-    const entries = await numstat(repo, base.commit, s.commit);
-    sinceBase.set(s.n, { entries, hunks: await hunksOf(repo, base.commit, s.commit, entries) });
+    sinceBase.set(s.n, await numstat(repo, base.commit, s.commit));
   }
 
   // 2. which files can be measured
   const touched = new Set<string>();
   const binary = new Set<string>();
-  for (const list of [...perStep.values(), ...[...sinceBase.values()].map((v) => v.entries)]) {
+  for (const list of [...perStep.values(), ...sinceBase.values()]) {
     for (const e of list) {
       touched.add(e.path);
       if (e.oldPath) touched.add(e.oldPath);
@@ -196,8 +177,23 @@ export async function computeStats(repo: Repo, input: StepRef[]): Promise<Sessio
       }
     });
   }
+  // read budget: count each distinct blob once, in path order; a file that would cross the line is left out whole
+  let spent = 0;
+  const counted = new Set<string>();
+  candidates.forEach((p, ci) => {
+    if (unmeasured.has(p)) return;
+    const fresh = new Map<string, number>();
+    for (let si = 0; si < steps.length; si++) {
+      const x = infos[si * candidates.length + ci]!;
+      if (x.oid && !counted.has(x.oid)) fresh.set(x.oid, x.size);
+    }
+    const cost = [...fresh.values()].reduce((a, b) => a + b, 0);
+    if (spent + cost > budget) { unmeasured.set(p, 'budget'); return; }
+    spent += cost;
+    for (const o of fresh.keys()) counted.add(o);
+  });
   const blobs = new Map<string, { sum: number; max: number; nul: boolean }>();
-  const wanted = [...new Set(infos.filter((x) => x.oid && x.size <= MAX_BLOB_BYTES).map((x) => x.oid))].sort();
+  const wanted = [...counted].sort();
   if (wanted.length) {
     const r = await git(['cat-file', '--batch'], { cwd: repo.top, input: wanted.join('\n') + '\n' });
     for (const e of parseBatch(r.stdoutBuf)) {
@@ -237,15 +233,13 @@ export async function computeStats(repo: Repo, input: StepRef[]): Promise<Sessio
     let added = 0;
     let removed = 0;
     let filesTouched = 0;
-    let largestHunk = 0;
-    since?.entries.forEach((e, i) => {
+    since?.forEach((e) => {
       if (!measured(e)) return;
       added += e.added;
       removed += e.removed;
       filesTouched += 1;
-      largestHunk = Math.max(largestHunk, since.hunks[i] ?? 0);
     });
-    return { n: s.n, files, metrics: { added, removed, filesTouched, largestHunk, indentSum, indentMax } };
+    return { n: s.n, files, metrics: { added, removed, filesTouched, indentSum, indentMax } };
   });
 
   return {

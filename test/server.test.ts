@@ -100,6 +100,27 @@ describe('local server (unit 5)', () => {
     }
   });
 
+  it('stats: concurrent identical requests agree, and a new step invalidates the cached result', async () => {
+    const d2 = makeRepo();
+    const repo2 = await openRepo(d2);
+    const sid2 = (await startSession(repo2)).id;
+    writeFileSync(join(d2, 'a.txt'), 'one\ntwo\n');
+    await stepSession(repo2, { note: 'one step' });
+    const run2 = await startServer({ repo: repo2, webRoot: resolve('dist/web') });
+    try {
+      const get = () => call('GET', `/api/sessions/${sid2}/stats`, {}, run2.token, run2.port);
+      const [x, y, z] = await Promise.all([get(), get(), get()]);
+      expect(y.body).toBe(x.body);
+      expect(z.body).toBe(x.body);
+      expect(JSON.parse(x.body).steps).toHaveLength(2);
+      writeFileSync(join(d2, 'a.txt'), 'one\ntwo\nthree\n');
+      await stepSession(repo2, { note: 'second step' });
+      expect(JSON.parse((await get()).body).steps).toHaveLength(3);
+    } finally {
+      await run2.close();
+    }
+  });
+
   it('serves sessions JSON on 127.0.0.1', async () => {
     const r = await call('GET', '/api/sessions');
     expect(r.status).toBe(200);
