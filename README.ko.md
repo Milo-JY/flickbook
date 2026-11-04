@@ -75,7 +75,7 @@ flickbook rm <id>                       # 세션의 스냅샷 삭제
 | 기점 대비 들여쓰기 합 | 세션이 건드린 모든 파일의 비어 있지 않은 줄에서 앞쪽 공백 폭(탭 = 4칸)을 더한 값에서 0단계의 같은 값을 뺀 것 | 코드가 전반적으로 더 깊게 또는 얕게 중첩되는 쪽으로 움직였는지 | 서식만 바꾼 단계(탭↔공백, 줄바꿈 다시 하기, 블록 다시 들여쓰기)도 논리 변화 없이 이 선을 움직임. 줄이 늘면 값도 늘고, 파일이나 코드를 지우면 떨어진 것으로 읽힘 |
 | 기점 대비 최대 들여쓰기 | 같은 파일 집합에서 비어 있지 않은 한 줄의 가장 큰 앞쪽 공백 폭에서 0단계 값을 뺀 것 | 어느 한 곳이 많이 깊어졌는지 | 한 줄의 값일 뿐이며, 줄바꿈된 인자 목록이나 긴 리터럴도 중첩된 블록처럼 셈 |
 
-이 숫자는 얼마나 바뀌었고 어떻게 들여써졌는지를 보여 줄 뿐입니다. 품질 점수가 아니며 정확성·설계·가독성에 대해서는 아무것도 말하지 않으니 diff 를 직접 읽으세요. 바이너리 파일, 1 MiB 를 넘는 파일, 한 번 계산에 64 MiB 읽기 한도를 넘은 파일, UTF-8 이 아닌 경로, 흔한 잠금 파일(`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`, `poetry.lock`, `Gemfile.lock`, `composer.lock`, `go.sum`)은 숫자에서 빠지며, `GET /api/sessions/<id>/stats`(다른 API 와 같은 토큰 필요)의 `unmeasured` 에 이유(`binary`, `too-large`, `budget`, `unreadable`, `lockfile`)와 함께 목록이 나옵니다. 내 코드를 실행해서 얻는 숫자는 없고, git 객체만으로 계산합니다.
+이 숫자는 얼마나 바뀌었고 어떻게 들여써졌는지를 보여 줄 뿐입니다. 품질 점수가 아니며 정확성·설계·가독성에 대해서는 아무것도 말하지 않으니 diff 를 직접 읽으세요. 바이너리 파일, 1 MiB 를 넘는 파일, 한 번 계산에 64 MiB 읽기 한도를 넘은 파일, UTF-8 이 아니거나 줄바꿈이 들어 있는 경로(`unreadable`), 흔한 잠금 파일(`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`, `poetry.lock`, `Gemfile.lock`, `composer.lock`, `go.sum`)은 숫자에서 빠지며, `GET /api/sessions/<id>/stats`(다른 API 와 같은 토큰 필요)의 `unmeasured` 에 이유(`binary`, `too-large`, `budget`, `unreadable`, `lockfile`)와 함께 목록이 나옵니다. 내 코드를 실행해서 얻는 숫자는 없고, git 객체만으로 계산합니다.
 
 ### 해설(선택 · 기본은 꺼짐)
 
