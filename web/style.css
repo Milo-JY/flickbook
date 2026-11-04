@@ -42,6 +42,7 @@ aside, section { min-height: 0; overflow: auto; }
 .cell { height: 14px; display: flex; background: #1c222b; cursor: pointer; border-radius: 2px; overflow: hidden; }
 .cell.on .a { background: var(--add); }
 .cell.on .d { background: var(--del); }
+.cell.same { background: #3a4356; }
 .cell.bin { align-items: center; justify-content: center; color: var(--dim); font-size: 9px; background: #2a2f3a; }
 .tl-head.sel, .tl-head.sel:hover { color: #06121f; background: var(--accent); }
 .cell.sel { outline: 1px solid var(--accent); outline-offset: -1px; background-color: #1f2a3a; }

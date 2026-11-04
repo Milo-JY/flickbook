@@ -399,7 +399,7 @@ function buildTimeline(): void {
         tips.set(cell, t('timeline.binary'));
       } else if (f) {
         const total = f.added + f.removed;
-        cell.classList.add('on');
+        cell.classList.add(total ? 'on' : 'same'); // 'same': touched without a line change (e.g. a pure rename)
         const add = el('span', { cls: 'a' });
         const del = el('span', { cls: 'd' });
         add.style.flexGrow = String(f.added);
