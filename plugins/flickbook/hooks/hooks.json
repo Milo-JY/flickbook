@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v flickbook >/dev/null 2>&1 || exit 0; exec flickbook hook claude-prompt"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v flickbook >/dev/null 2>&1 || exit 0; exec flickbook hook claude-stop"
+          }
+        ]
+      }
+    ]
+  }
+}

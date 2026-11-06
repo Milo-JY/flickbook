@@ -110,7 +110,16 @@ flickbook explain                        # 최근 단계 (--step N · --all)
 }
 ```
 
-에이전트의 한 턴이 끝날 때마다 한 단계가 쌓이고, 그 턴의 프롬프트가 맥락으로 저장됩니다. 활성 세션이 없는 저장소에서는 아무것도 하지 않고 출력도 없으므로 전역 설치해도 조용합니다. flickbook 이 설정 파일을 대신 고치지는 않습니다.
+Claude Code 플러그인으로도 쓸 수 있습니다. 같은 `flickbook hook` 명령을 부르므로 CLI 는 여전히 PATH 에 있어야 하고, 플러그인과 스니펫 중 하나만 쓰세요.
+
+```
+/plugin marketplace add Milo-JY/flickbook
+/plugin install flickbook@flickbook
+```
+
+그다음 저장소에서 `/flickbook:start` 를 실행합니다.
+
+어느 쪽이든 에이전트의 한 턴이 끝날 때마다 한 단계가 쌓이고, 그 턴의 프롬프트가 맥락으로 저장됩니다. 활성 세션이 없는 저장소에서는 아무것도 하지 않고 출력도 없으므로 전역 설치해도 조용합니다. flickbook 이 설정 파일을 대신 고치지는 않습니다.
 
 ## 개인정보
 

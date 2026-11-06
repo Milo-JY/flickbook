@@ -1,0 +1,14 @@
+{
+  "name": "flickbook",
+  "owner": {
+    "name": "Milo-JY"
+  },
+  "description": "Replay what an AI coding agent changed, step by step, with explanations. Local only.",
+  "plugins": [
+    {
+      "name": "flickbook",
+      "source": "./plugins/flickbook",
+      "description": "Record each Claude Code turn as a flickbook step, then replay the diffs and explanations in a local web UI."
+    }
+  ]
+}

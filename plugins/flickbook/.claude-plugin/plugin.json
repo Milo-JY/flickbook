@@ -1,0 +1,9 @@
+{
+  "name": "flickbook",
+  "version": "0.2.0",
+  "description": "Record each Claude Code turn as a flickbook step, then replay the diffs and explanations in a local web UI.",
+  "author": { "name": "Milo-JY" },
+  "license": "MIT",
+  "homepage": "https://github.com/Milo-JY/flickbook",
+  "repository": "https://github.com/Milo-JY/flickbook"
+}

@@ -110,7 +110,16 @@ In this version explanations use the Claude Code CLI (`claude`) you already have
 }
 ```
 
-Each finished turn becomes one step, with your prompt stored as its context. The hooks do nothing (and print nothing) in repositories without an active session, so a global install is quiet. flickbook does not edit your settings for you.
+As a Claude Code plugin (it calls the same `flickbook hook` commands, so the CLI still has to be on PATH; use either the plugin or the snippet, not both):
+
+```
+/plugin marketplace add Milo-JY/flickbook
+/plugin install flickbook@flickbook
+```
+
+Then run `/flickbook:start` in a repository.
+
+Either way, each finished turn becomes one step, with your prompt stored as its context. The hooks do nothing (and print nothing) in repositories without an active session, so a global install is quiet. flickbook does not edit your settings for you.
 
 ## Privacy
 
